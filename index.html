@@ -788,7 +788,20 @@
     let activeGroup = 'all';
     let modalChart = null;
     let dashboardInitialized = false;
-    const IS_SUBGROUP_VIEW = Boolean((new URLSearchParams(window.location.search).get('subgroup') || '').trim());
+
+    function normalizeSubgroupParam(raw) {
+      const val = safeText(raw).trim();
+      if (!val) return '';
+      const key = val.toLowerCase();
+      if (key === 'all' || key === 'all-groups' || key === 'full' || key === 'regional' || key === '*') {
+        return '';
+      }
+      return val;
+    }
+
+    const URL_PARAMS = new URLSearchParams(window.location.search);
+    const SUBGROUP_PARAM = normalizeSubgroupParam(URL_PARAMS.get('subgroup'));
+    const IS_SUBGROUP_VIEW = Boolean(SUBGROUP_PARAM);
 
     function num(v) {
       const n = Number(v);
@@ -2632,8 +2645,7 @@
     async function loadDashboard() {
       const BASE_API_URL = 'https://script.google.com/macros/s/AKfycbxaG6aQYt7iSvTkRNJfWL6YSqd-wPPVr8x3sgRUWRW-aEazAJw2WY9kIw8qyXwG1vmA/exec';
 
-      const params = new URLSearchParams(window.location.search);
-      const subgroup = (params.get('subgroup') || '').trim();
+      const subgroup = SUBGROUP_PARAM;
 
       const apiUrl = subgroup
         ? `${BASE_API_URL}?subgroup=${encodeURIComponent(subgroup)}`
