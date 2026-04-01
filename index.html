@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BLW Canada ; Cell Dashboard</title>
+  <title>BLW Canada Cell Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
@@ -788,6 +788,7 @@
     let activeGroup = 'all';
     let modalChart = null;
     let dashboardInitialized = false;
+    const IS_SUBGROUP_VIEW = Boolean((new URLSearchParams(window.location.search).get('subgroup') || '').trim());
 
     function num(v) {
       const n = Number(v);
@@ -1755,12 +1756,20 @@
       const host = document.getElementById('top-tabs');
       host.innerHTML = '';
 
-      [
-        { key: 'regional', label: 'Regional' },
+      const topTabs = [
         { key: 'overview', label: 'SG Overview' },
         { key: 'cells', label: 'Cells' },
         { key: 'services', label: 'Services' }
-      ].forEach(def => {
+      ];
+      if (!IS_SUBGROUP_VIEW) {
+        topTabs.unshift({ key: 'regional', label: 'Regional' });
+      }
+
+      if (IS_SUBGROUP_VIEW && currentTopTab === 'regional') {
+        currentTopTab = 'overview';
+      }
+
+      topTabs.forEach(def => {
         const btn = document.createElement('button');
         btn.className = `tab-btn ${currentTopTab === def.key ? 'active' : ''}`;
         btn.textContent = def.label;
