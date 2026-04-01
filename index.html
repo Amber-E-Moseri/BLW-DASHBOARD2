@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BLW Canada — Cell Dashboard</title>
+  <title>BLW Canada &mdash; Cell Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
@@ -670,7 +670,7 @@
   <header>
     <div class="logo-area">
       <div class="logo-title-row">
-        <img src="canada_sr.png" alt="BLW Canada Logo" class="logo-mark" />
+        <img src="../canada_sr (1).png" alt="BLW Canada Logo" class="logo-mark" />
         <h1>BLW Canada Dashboard</h1>
       </div>
       <p>Cell attendance, services, trends and reporting metrics</p>
@@ -715,7 +715,7 @@
       </button>
 
       <div class="last-updated" id="last-updated" style="display:none;">
-        <span class="last-updated-label">Updated:</span> <span id="updated-time">—</span>
+        <span class="last-updated-label">Updated:</span> <span id="updated-time">&mdash;</span>
       </div>
     </div>
   </header>
@@ -838,7 +838,7 @@
     }
 
     function formatPct(n) {
-      if (n == null || Number.isNaN(n)) return '—';
+      if (n == null || Number.isNaN(n)) return '-';
       const sign = n > 0 ? '+' : '';
       return `${sign}${Math.round(n)}%`;
     }
@@ -1948,19 +1948,19 @@
         trend === 'down' ? 'down' :
         'flat';
       const arrow =
-        trend === 'up' ? '↑' :
-        trend === 'emerging' ? '↗' :
-        trend === 'down' ? '↓' :
-        '→';
+        trend === 'up' ? '&uarr;' :
+        trend === 'emerging' ? '&nearr;' :
+        trend === 'down' ? '&darr;' :
+        '&rarr;';
       const trendLabelBase = safeText(d?.trend?.classification, '');
-      const trendTags = Array.isArray(d?.trend?.tags) && d.trend.tags.length ? ` • ${d.trend.tags.join(', ')}` : '';
+      const trendTags = Array.isArray(d?.trend?.tags) && d.trend.tags.length ? ` &bull; ${d.trend.tags.join(', ')}` : '';
       const trendLabel = `${trendLabelBase}${trendTags}`;
       const isOverviewCells = d.type === 'overview-cells';
       const isOverviewServices = d.type === 'overview-services';
       const isRegionalCard = safeText(d.group).toLowerCase() === 'regional';
       const subtitle = (isOverviewCells || isOverviewServices)
         ? `${isRegionalCard ? 'Regional Summary' : safeText(d.group)}`
-        : `${d.group}${d.leader ? ' · ' + d.leader : ''}${d.sc_code ? ' · ' + d.sc_code : ''}`;
+        : `${d.group}${d.leader ? ' - ' + d.leader : ''}${d.sc_code ? ' - ' + d.sc_code : ''}`;
 
       let stat1Val = formatInt(d.membership);
       let stat1Lbl = 'Members';
@@ -2004,7 +2004,7 @@
       // Format attention reasons
       let reasonsHTML = '';
       if (!isRegionalCard && d.needsAttentionReasons && d.needsAttentionReasons.length) {
-        reasonsHTML = `<div class="attention-reason">${d.needsAttentionReasons.join(' • ')}</div>`;
+        reasonsHTML = `<div class="attention-reason">${d.needsAttentionReasons.join(' &bull; ')}</div>`;
       }
 
       // Format month-on-month change if applicable
@@ -2073,14 +2073,14 @@
       document.getElementById('modal-title').textContent = d.name;
       const baseSub =
         isRegionalCard
-          ? `Regional Overview · Reporting ${Math.round(d.reporting_pct)}%`
+          ? `Regional Overview - Reporting ${Math.round(d.reporting_pct)}%`
           : isOverviewCells
-          ? `Cells Overview · Reporting ${Math.round(d.reporting_pct)}%`
+          ? `Cells Overview - Reporting ${Math.round(d.reporting_pct)}%`
           : isOverviewServices
-            ? `Services Overview · Reporting ${Math.round(d.reporting_pct)}%`
+            ? `Services Overview - Reporting ${Math.round(d.reporting_pct)}%`
             : isServicesTabCard
-              ? `Subgroup: ${d.group} · Reporting ${Math.round(d.reporting_pct)}%`
-            : `${titleCase(currentTopTab)} · ${d.group}${d.leader ? ' · ' + d.leader : ''}`;
+              ? `Subgroup: ${d.group} - Reporting ${Math.round(d.reporting_pct)}%`
+            : `${titleCase(currentTopTab)} - ${d.group}${d.leader ? ' - ' + d.leader : ''}`;
       document.getElementById('modal-sub').textContent = `${baseSub} | Trend: ${safeText(d?.trend?.classification, 'Stable')}${trendTags ? ` (${trendTags})` : ''} | Month %: ${monthText} | 3M %: ${threeText}`;
 
       document.getElementById('modal-stats').innerHTML = `
@@ -2088,7 +2088,7 @@
           <div class="val">${
             isRegionalCard
               ? (isOverviewServices ? formatInt(d.total || 0) : formatInt(d.membership))
-              : (isOverviewServices ? formatInt(d.needs_attention_count || 0) : isServicesTabCard ? safeText(d.group, '—') : formatInt(d.membership))
+              : (isOverviewServices ? formatInt(d.needs_attention_count || 0) : isServicesTabCard ? safeText(d.group, '-') : formatInt(d.membership))
           }</div>
           <div class="lbl">${
             isRegionalCard
@@ -2112,7 +2112,7 @@
           <div class="val">${
             isServicesTabCard
               ? formatSecondaryPct(monthMeta, lowConf)
-              : `${safeText(d?.trend?.classification, 'Stable')}${Array.isArray(d?.trend?.tags) && d.trend.tags.length ? ` • ${d.trend.tags.join(', ')}` : ''}`
+              : `${safeText(d?.trend?.classification, 'Stable')}${Array.isArray(d?.trend?.tags) && d.trend.tags.length ? ` &bull; ${d.trend.tags.join(', ')}` : ''}`
           }</div>
           <div class="lbl">${isServicesTabCard ? 'MoM' : 'Trend'}</div>
         </div>
@@ -2144,7 +2144,7 @@
         );
 
         if (hasAttention) {
-          const reasons = (d.needsAttentionReasons || []).join(' • ');
+          const reasons = (d.needsAttentionReasons || []).join(' &bull; ');
           const names = (d.needsAttentionNames || []).join(', ');
           const namesHtml = names ? `<br><span>Fellowship(s): ${names}</span>` : '';
           const missingWeeks = (d.missingReportWeeks || []).filter(Boolean);
@@ -2621,12 +2621,21 @@
     }
 
     async function loadDashboard() {
-      // Replace with your deployed Google Apps Script web app URL
-      const API_URL = 'https://script.google.com/macros/s/AKfycbxaG6aQYt7iSvTkRNJfWL6YSqd-wPPVr8x3sgRUWRW-aEazAJw2WY9kIw8qyXwG1vmA/exec';
-      const CACHE_KEY = 'blw-dashboard-last-good-payload-v2-copy';
-      let hadCachedPayload = false;
+      const BASE_API_URL = 'https://script.google.com/macros/s/AKfycbxaG6aQYt7iSvTkRNJfWL6YSqd-wPPVr8x3sgRUWRW-aEazAJw2WY9kIw8qyXwG1vmA/exec';
 
-      console.log('Loading dashboard data from:', API_URL);
+      const params = new URLSearchParams(window.location.search);
+      const subgroup = (params.get('subgroup') || '').trim();
+
+      const apiUrl = subgroup
+        ? `${BASE_API_URL}?subgroup=${encodeURIComponent(subgroup)}`
+        : BASE_API_URL;
+
+      // Cache per subgroup so data does not mix between links
+      const cacheScope = subgroup ? subgroup.toLowerCase() : 'all';
+      const CACHE_KEY = `blw-dashboard-last-good-payload-v2-copy-${cacheScope}`;
+
+      let hadCachedPayload = false;
+      console.log('Loading dashboard data from:', apiUrl);
 
       try {
         const cachedRaw = localStorage.getItem(CACHE_KEY);
@@ -2641,18 +2650,20 @@
       }
 
       try {
-        const payload = await loadWithRetries(API_URL, {
+        const payload = await loadWithRetries(apiUrl, {
           attempts: 4,
           baseTimeoutMs: 10000,
           timeoutStepMs: 5000,
           backoffMs: 900
         });
+
         localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
         applyPayload(payload);
       } catch (loadErr) {
         console.error('Dashboard load error:', loadErr);
+
         if (hadCachedPayload) {
-          // Keep cached data on screen and retry in the background.
+          // Keep cached data visible and retry in background
           setTimeout(() => {
             loadDashboard().catch(err => console.warn('Scheduled retry failed:', err));
           }, 45000);
@@ -2661,7 +2672,9 @@
 
         const message = loadErr?.message || 'Unknown error';
         document.getElementById('grid-wrap').innerHTML =
-          '<div class="empty-state error"><p>Failed to load dashboard data.</p><small>Please check your web app deployment and sharing permissions. Error: ' + message + '</small></div>';
+          '<div class="empty-state error"><p>Failed to load dashboard data.</p><small>Please check your web app deployment and sharing permissions. Error: ' +
+          message +
+          '</small></div>';
       }
     }
 
@@ -2669,3 +2682,4 @@
   </script>
 </body>
 </html>
+
