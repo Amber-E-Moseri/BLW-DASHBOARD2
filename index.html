@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BLW Canada Cell Dashboard</title>
+  <title>BLW Canada &mdash; Cell Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
@@ -670,7 +670,7 @@
   <header>
     <div class="logo-area">
       <div class="logo-title-row">
-        <img src="canada_sr.png" alt="BLW Canada Logo" class="logo-mark" />
+        <img src="../canada_sr (1).png" alt="BLW Canada Logo" class="logo-mark" />
         <h1>BLW Canada Dashboard</h1>
       </div>
       <p>Cell attendance, services, trends and reporting metrics</p>
@@ -1769,17 +1769,31 @@
       const host = document.getElementById('top-tabs');
       host.innerHTML = '';
 
-      const topTabs = [
-        { key: 'overview', label: 'SG Overview' },
-        { key: 'cells', label: 'Cells' },
-        { key: 'services', label: 'Services' }
-      ];
-      if (!IS_SUBGROUP_VIEW) {
-        topTabs.unshift({ key: 'regional', label: 'Regional' });
-      }
+      const topTabs = IS_SUBGROUP_VIEW
+        ? [
+            { key: 'overview', label: 'SG Overview' },
+            { key: 'cells', label: 'Cells' },
+            { key: 'services', label: 'Services' }
+          ]
+        : [
+            { key: 'regional', label: 'Regional' },
+            { key: 'overview', label: 'SG Overview' },
+            { key: 'cells', label: 'Cells' },
+            { key: 'services', label: 'Services' }
+          ];
 
       if (IS_SUBGROUP_VIEW && currentTopTab === 'regional') {
         currentTopTab = 'overview';
+      }
+
+      if (IS_SUBGROUP_VIEW) {
+        const fullBtn = document.createElement('button');
+        fullBtn.className = 'tab-btn';
+        fullBtn.textContent = 'Full Dashboard';
+        fullBtn.addEventListener('click', () => {
+          window.location.href = `${window.location.pathname}`;
+        });
+        host.appendChild(fullBtn);
       }
 
       topTabs.forEach(def => {
@@ -2643,7 +2657,7 @@
     }
 
     async function loadDashboard() {
-      const BASE_API_URL = 'https://script.google.com/macros/s/AKfycbxaG6aQYt7iSvTkRNJfWL6YSqd-wPPVr8x3sgRUWRW-aEazAJw2WY9kIw8qyXwG1vmA/exec';
+      const BASE_API_URL = 'https://script.google.com/macros/s/AKfycbzizTU0Ubjrg7-Gmnk4bFWPlcFF7qxz01e_HEM5syoAxajZ-k3JtSvPzGfEf58kf_7i/exec';
 
       const subgroup = SUBGROUP_PARAM;
 
