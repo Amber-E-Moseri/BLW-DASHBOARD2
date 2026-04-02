@@ -670,7 +670,7 @@
   <header>
     <div class="logo-area">
       <div class="logo-title-row">
-        <img src="../canada_sr (1).png" alt="BLW Canada Logo" class="logo-mark" />
+        <img src="canada_sr.png" alt="BLW Canada Logo" class="logo-mark" />
         <h1>BLW Canada Dashboard</h1>
       </div>
       <p>Cell attendance, services, trends and reporting metrics</p>
@@ -1786,15 +1786,7 @@
         currentTopTab = 'overview';
       }
 
-      if (IS_SUBGROUP_VIEW) {
-        const fullBtn = document.createElement('button');
-        fullBtn.className = 'tab-btn';
-        fullBtn.textContent = 'Full Dashboard';
-        fullBtn.addEventListener('click', () => {
-          window.location.href = `${window.location.pathname}`;
-        });
-        host.appendChild(fullBtn);
-      }
+
 
       topTabs.forEach(def => {
         const btn = document.createElement('button');
@@ -1820,6 +1812,11 @@
         return;
       }
       tabsEl.style.display = 'flex';
+
+      if (IS_SUBGROUP_VIEW) {
+        tabsEl.style.display = 'none';
+        return;
+      }
 
       const allTab = document.createElement('button');
       allTab.className = `tab-btn ${activeGroup === 'all' ? 'active' : ''}`;
@@ -2482,10 +2479,12 @@
         const grpItems = filtered.filter(d => d.group === grp);
         if (!grpItems.length) return;
 
-        const lbl = document.createElement('div');
-        lbl.className = 'group-label';
-        lbl.textContent = grp;
-        wrap.appendChild(lbl);
+        if (!IS_SUBGROUP_VIEW) {
+          const lbl = document.createElement('div');
+          lbl.className = 'group-label';
+          lbl.textContent = grp;
+          wrap.appendChild(lbl);
+        }
 
         const grid = document.createElement('div');
         grid.className = 'grid';
@@ -2535,9 +2534,25 @@
         throw new Error(data?.message || 'No data returned from backend.');
       }
 
-      rawPayload.overview = Array.isArray(data.overview) ? data.overview : [];
-      rawPayload.cells = Array.isArray(data.cells) ? data.cells : [];
-      rawPayload.services = Array.isArray(data.services) ? data.services : [];
+      const allOverview  = Array.isArray(data.overview)  ? data.overview  : [];
+      const allCells     = Array.isArray(data.cells)     ? data.cells     : [];
+      const allServices  = Array.isArray(data.services)  ? data.services  : [];
+
+      if (IS_SUBGROUP_VIEW) {
+        const sg = SUBGROUP_PARAM.toLowerCase();
+        const matchesSubgroup = r =>
+          safeText(r.group || r.region || r.subgroup || r.cluster || r.name || '')
+            .toLowerCase() === sg;
+
+        rawPayload.overview  = allOverview.filter(matchesSubgroup);
+        rawPayload.cells     = allCells.filter(matchesSubgroup);
+        rawPayload.services  = allServices.filter(matchesSubgroup);
+      } else {
+        rawPayload.overview  = allOverview;
+        rawPayload.cells     = allCells;
+        rawPayload.services  = allServices;
+      }
+
       rawPayload.lastUpdated = data.lastUpdated || data.last_updated || new Date().toISOString();
 
       if (!rawPayload.overview.length && !rawPayload.cells.length && !rawPayload.services.length) {
