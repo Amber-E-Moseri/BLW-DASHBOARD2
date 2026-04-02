@@ -1,0 +1,2734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BLW Canada &mdash; Cell Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --surface: #12151c;
+      --surface2: #1a1f2b;
+      --border: rgba(255,255,255,0.07);
+      --accent: #6c63ff;
+      --accent2: #f7b731;
+      --green: #26de81;
+      --red: #fc5c65;
+      --muted: #6b7280;
+      --text: #e8eaf0;
+      --text-dim: #9ca3af;
+      --radius: 14px;
+    }
+
+    .light-mode {
+      --bg: #ffffff;
+      --surface: #f8f9fa;
+      --surface2: #e9ecef;
+      --border: rgba(0,0,0,0.1);
+      --accent: #6c63ff;
+      --accent2: #f7b731;
+      --green: #26de81;
+      --red: #fc5c65;
+      --muted: #6c757d;
+      --text: #212529;
+      --text-dim: #6c757d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 32px 40px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      background: linear-gradient(180deg, rgba(108,99,255,0.08) 0%, transparent 100%);
+    }
+
+    .logo-area h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .logo-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-mark {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      display: block;
+      border-radius: 6px;
+    }
+
+    .logo-area p {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-top: 2px;
+      font-weight: 300;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .last-updated {
+      font-size: 11px;
+      color: var(--text-dim);
+      padding: 4px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .last-updated-label {
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .search-wrap { position: relative; }
+
+    .search-wrap svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    input[type=text] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px 8px 32px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      width: 220px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type=text]::placeholder { color: var(--muted); }
+    input[type=text]:focus { border-color: var(--accent); }
+
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    button.reset-filters {
+      background: rgba(252, 92, 101, 0.1);
+      border: 1px solid rgba(252, 92, 101, 0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--red);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button.reset-filters:hover {
+      background: rgba(252, 92, 101, 0.2);
+      border-color: var(--red);
+    }
+
+    button.theme-toggle {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button.theme-toggle:hover {
+      background: var(--surface);
+      border-color: var(--accent);
+    }
+
+    .summary-bar {
+      display: flex;
+      gap: 12px;
+      padding: 16px 40px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      background: var(--surface);
+    }
+
+    .definitions {
+      padding: 6px 40px 10px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      opacity: 0.9;
+    }
+
+    .definitions-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .definitions-card summary {
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+
+    .definitions-card summary::-webkit-details-marker { display: none; }
+
+    .definitions-title {
+      color: var(--text-dim);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+
+    .definitions-card summary.definitions-title::after {
+      content: 'Show';
+      float: right;
+      text-transform: none;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0;
+      font-weight: 500;
+    }
+
+    .definitions-card[open] summary.definitions-title {
+      margin-bottom: 6px;
+    }
+
+    .definitions-card[open] summary.definitions-title::after {
+      content: 'Hide';
+    }
+
+    .definitions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 4px 12px;
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .def-item {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      line-height: 1.3;
+      opacity: 0.9;
+    }
+
+    .def-item strong {
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    .stat-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 12px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .stat-pill:hover {
+      border-color: var(--accent);
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .stat-pill strong { color: var(--text); font-weight: 600; }
+    .stat-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 0 40px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      scrollbar-width: none;
+      background: var(--surface);
+    }
+
+    .tabs::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-dim);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 10px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .grid-wrap { padding: 28px 40px; }
+
+    .group-label {
+      font-family: 'DM Serif Display', serif;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      margin: 24px 0 12px;
+      opacity: 0.8;
+    }
+
+    .group-label:first-child { margin-top: 0; }
+
+    .overview-section {
+      margin-bottom: 26px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 18px 14px;
+      transition: border-color 0.2s, transform 0.18s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .card:hover { border-color: rgba(108,99,255,0.4); transform: translateY(-1px); }
+    .card:hover::before { opacity: 1; }
+
+    .card.trending-up::before { background: var(--green); opacity: 1; }
+    .card.trending-down::before { background: var(--red); opacity: 1; }
+    .card.no-data::before { background: var(--muted); opacity: 0.4; }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .card-sub {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      font-weight: 300;
+    }
+
+    .insight-row {
+      margin-top: 4px;
+      font-size: 10px;
+      color: var(--text-dim);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .insight-up { color: var(--green); font-weight: 600; }
+    .insight-down { color: var(--red); font-weight: 600; }
+    .insight-flat { color: var(--muted); font-weight: 600; }
+
+    .trend-badge {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .trend-badge.up { background: rgba(38,222,129,0.12); color: var(--green); }
+    .trend-badge.down { background: rgba(252,92,101,0.12); color: var(--red); }
+    .trend-badge.flat { background: rgba(107,114,128,0.15); color: var(--muted); }
+    .trend-pct {
+      font-size: 10px;
+      font-weight: 500;
+      opacity: 0.85;
+      margin-left: 4px;
+    }
+    .trend-pct.lowconf {
+      opacity: 0.55;
+    }
+
+    .sparkline-wrap {
+      height: 44px;
+      margin: 8px 0;
+      position: relative;
+    }
+
+    canvas.spark {
+      width: 100%;
+      height: 44px;
+      display: block;
+    }
+
+    .card-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .mini-stat { text-align: center; }
+
+    .mini-stat .val {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .mini-stat .lbl {
+      font-size: 9.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-top: 2px;
+    }
+
+    .reporting-ring {
+      position: relative;
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .reporting-ring svg { width: 32px; height: 32px; transform: rotate(-90deg); }
+
+    .reporting-ring .ring-pct {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7.5px;
+      font-weight: 600;
+      color: var(--text-dim);
+      transform: none;
+    }
+
+    .no-data-msg {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .zero-attendance-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      background: rgba(107, 114, 128, 0.1);
+      color: var(--muted2);
+    }
+
+    .no-report-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-dim);
+      text-decoration: line-through;
+    }
+
+    .attention-reason {
+      font-size: 10px;
+      color: var(--red);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state p { 
+      font-size: 15px; 
+      margin-top: 8px; 
+    }
+
+    .empty-state.error {
+      border: 1px solid rgba(248, 113, 113, 0.2);
+      border-radius: 12px;
+      background: rgba(248, 113, 113, 0.05);
+      color: var(--red);
+    }
+
+    .empty-state.error p { color: var(--red); font-weight: 500; }
+    .empty-state.error small { color: var(--text-dim); display: block; margin-top: 12px; font-size: 12px; }
+
+    .loader {
+      padding: 50px 40px;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px;
+      max-width: 560px;
+      width: 100%;
+      position: relative;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    .modal .modal-sub {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-dim);
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .modal-chart-wrap {
+      height: 180px;
+      margin: 16px 0;
+    }
+
+    canvas#modal-chart {
+      width: 100%;
+      height: 180px;
+    }
+
+    .modal-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .modal-stat {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 10px;
+      text-align: center;
+    }
+
+    .modal-stat .val {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .modal-stat .lbl {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-top: 4px;
+    }
+
+    .wow-table { margin-top: 18px; }
+    .wow-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .wow-table th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 500;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .wow-table td {
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .wow-table .pos { color: var(--green); }
+    .wow-table .neg { color: var(--red); }
+
+    .modal-attention {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+
+    .modal-attention strong {
+      color: var(--red);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-area">
+      <div class="logo-title-row">
+        <img src="canada_sr.png" alt="BLW Canada Logo" class="logo-mark" />
+        <h1>BLW Canada Dashboard</h1>
+      </div>
+      <p>Cell attendance, services, trends and reporting metrics</p>
+    </div>
+
+    <div class="controls">
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input id="search" type="text" placeholder="Search name, group, leader..." />
+      </div>
+
+      <select id="sort-select">
+        <option value="name">Sort: Name</option>
+        <option value="growth">Sort: Growth</option>
+        <option value="attendance">Sort: Attendance</option>
+        <option value="membership">Sort: Membership</option>
+        <option value="reporting">Sort: Reporting</option>
+        <option value="missing">Sort: Missing Reports</option>
+      </select>
+
+      <select id="trend-filter">
+        <option value="all">Trend: All</option>
+        <option value="up">Trending Up</option>
+        <option value="emerging">Emerging Growth</option>
+        <option value="down">Trending Down</option>
+        <option value="flat">Flat</option>
+        <option value="volatile">Volatile</option>
+        <option value="attention">Needs Attention</option>
+        <option value="missing">Missing Reports Only</option>
+      </select>
+
+      <button class="reset-filters" id="reset-filters">Reset Filters</button>
+
+      <button class="theme-toggle" id="theme-toggle" title="Toggle Theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"></circle>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+        </svg>
+      </button>
+
+      <div class="last-updated" id="last-updated" style="display:none;">
+        <span class="last-updated-label">Updated:</span> <span id="updated-time">&mdash;</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="summary-bar" class="summary-bar"></div>
+
+  <section class="definitions" aria-label="Dashboard definitions">
+    <details class="definitions-card">
+      <summary class="definitions-title">Definitions & Label Guide</summary>
+      <div class="definitions-grid">
+        <div class="def-item"><strong>Growing:</strong> sustained upward movement across recent valid weeks.</div>
+        <div class="def-item"><strong>Emerging Growth:</strong> upward direction, but not yet stable.</div>
+        <div class="def-item"><strong>Recovered:</strong> return near baseline after a sharp dip; not counted as growth.</div>
+        <div class="def-item"><strong>Flat:</strong> no meaningful up/down change.</div>
+        <div class="def-item"><strong>Declining:</strong> sustained downward movement.</div>
+        <div class="def-item"><strong>Volatile:</strong> large swings without clear direction.</div>
+        <div class="def-item"><strong>Reporting %:</strong> share of expected reports actually submitted.</div>
+        <div class="def-item"><strong>Missing Reports:</strong> expected reports with no submitted attendance value.</div>
+        <div class="def-item"><strong>Needs Attention:</strong> low reporting, missing reports, or zero-attendance risk.</div>
+      </div>
+    </details>
+  </section>
+
+  <div id="top-tabs" class="tabs"></div>
+  <div id="tabs" class="tabs"></div>
+
+  <div id="grid-wrap" class="grid-wrap">
+    <div class="loader">Loading dashboard...</div>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <button id="modal-close" class="modal-close">Close</button>
+      <h2 id="modal-title"></h2>
+      <div id="modal-sub" class="modal-sub"></div>
+
+      <div class="modal-chart-wrap">
+        <canvas id="modal-chart"></canvas>
+      </div>
+
+      <div id="modal-stats" class="modal-stats"></div>
+
+      <div class="wow-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Prev</th>
+              <th>Current</th>
+              <th>Change</th>
+            </tr>
+          </thead>
+          <tbody id="wow-body"></tbody>
+        </table>
+      </div>
+
+      <div id="modal-attention" class="modal-attention" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    const rawPayload = {
+      overview: [],
+      cells: [],
+      services: [],
+      lastUpdated: null
+    };
+
+    let currentTopTab = 'overview';
+    let activeGroup = 'all';
+    let modalChart = null;
+    let dashboardInitialized = false;
+
+    function normalizeSubgroupParam(raw) {
+      const val = safeText(raw).trim();
+      if (!val) return '';
+      const key = val.toLowerCase();
+      if (key === 'all' || key === 'all-groups' || key === 'full' || key === 'regional' || key === '*') {
+        return '';
+      }
+      return val;
+    }
+
+    const URL_PARAMS = new URLSearchParams(window.location.search);
+    const SUBGROUP_PARAM = normalizeSubgroupParam(URL_PARAMS.get('subgroup'));
+    const IS_SUBGROUP_VIEW = Boolean(SUBGROUP_PARAM);
+
+    function num(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function safeText(v, fallback = '') {
+      return v == null ? fallback : String(v);
+    }
+
+    function titleCase(s) {
+      return safeText(s)
+        .toLowerCase()
+        .replace(/\b\w/g, m => m.toUpperCase());
+    }
+
+    function slugify(s) {
+      return safeText(s)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    }
+
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function avg(arr) {
+      if (!arr.length) return 0;
+      return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+
+    function sum(arr) {
+      return arr.reduce((a, b) => a + b, 0);
+    }
+
+    function unique(arr) {
+      return [...new Set(arr)];
+    }
+
+    function pct(part, whole) {
+      if (!whole) return 0;
+      return Math.round((part / whole) * 100);
+    }
+
+    function formatInt(n) {
+      return num(n).toLocaleString();
+    }
+
+    function formatPct(n) {
+      if (n == null || Number.isNaN(n)) return '-';
+      const sign = n > 0 ? '+' : '';
+      return `${sign}${Math.round(n)}%`;
+    }
+
+    function getMonthPctMeta(series) {
+      const clean = validSeriesValues(series);
+      if (clean.length < 2) return { hasData: false, pct: null, fromZero: false };
+      const prev = clean[clean.length - 2];
+      const curr = clean[clean.length - 1];
+      const fromZero = prev === 0 && curr > 0;
+      const pct = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+      return { hasData: true, pct, fromZero };
+    }
+
+    function getThreeMonthPctMeta(series) {
+      const vals = validSeriesValues(series);
+      if (vals.length < 2) return { hasData: false, pct: null, fromZero: false };
+      if (vals.length >= 6) {
+        const prev3 = vals.slice(-6, -3);
+        const last3 = vals.slice(-3);
+        const prevAvg = avg(prev3);
+        const lastAvg = avg(last3);
+        const fromZero = prevAvg === 0 && lastAvg > 0;
+        const pct = prevAvg === 0 ? (lastAvg > 0 ? 100 : 0) : ((lastAvg - prevAvg) / prevAvg) * 100;
+        return { hasData: true, pct, fromZero };
+      }
+      const prev = vals[vals.length - 2];
+      const curr = vals[vals.length - 1];
+      const fromZero = prev === 0 && curr > 0;
+      const pct = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+      return { hasData: true, pct, fromZero };
+    }
+
+    function formatSecondaryPct(meta, lowConfidence = false) {
+      if (!meta?.hasData) return 'n/a';
+      if (meta.fromZero) return lowConfidence ? 'from 0 (low conf)' : 'from 0';
+      const pct = formatPct(meta.pct);
+      return lowConfidence ? `${pct} (low conf)` : pct;
+    }
+
+    function lastN(arr, n) {
+      return arr.slice(Math.max(arr.length - n, 0));
+    }
+
+    function sumLastN(arr, n) {
+      return sum(lastN(arr, n).map(num));
+    }
+
+    function avgLastN(arr, n) {
+      const vals = lastN(arr, n).map(num);
+      return vals.length ? avg(vals) : 0;
+    }
+
+    function validSeriesValues(series) {
+      return (series || [])
+        .filter(v => v !== null && v !== undefined && v !== '')
+        .map(num)
+        .filter(v => Number.isFinite(v));
+    }
+
+    function isMissingAttendanceValue(v) {
+      return v === null || v === undefined || v === '' || v === 'N/A' || v === 'no report';
+    }
+
+    function mapTrendLabel(direction, confidence = 'high') {
+      if (direction === 'new') return 'New';
+      if (direction === 'up') return confidence === 'low' ? 'Emerging Growth' : 'Growing';
+      if (direction === 'down') return 'Declining';
+      if (direction === 'flat') return confidence === 'low' ? 'Insufficient data' : 'Stable';
+      if (direction === 'volatile') return 'Volatile';
+      return 'Stable';
+    }
+
+    function calcLast3MonthTrendPct(series) {
+      const vals = (series || [])
+        .filter(v => v !== null && v !== undefined && v !== '')
+        .map(num);
+
+      if (vals.length < 2) return null;
+
+      if (vals.length >= 6) {
+        const prev3 = vals.slice(-6, -3);
+        const last3 = vals.slice(-3);
+        const prevAvg = avg(prev3);
+        const lastAvg = avg(last3);
+        return prevAvg === 0 ? (lastAvg > 0 ? 100 : 0) : ((lastAvg - prevAvg) / prevAvg) * 100;
+      }
+
+      const prev = vals[vals.length - 2];
+      const curr = vals[vals.length - 1];
+      return prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+    }
+
+    function monthOrderKey(label) {
+      const s = safeText(label).trim();
+      const tryDate = new Date(s);
+      if (!Number.isNaN(tryDate.getTime())) return tryDate.getTime();
+
+      const shortMonths = {
+        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+      };
+      const m = s.toLowerCase().match(/^([a-z]{3,})[\s\-\/,]*(\d{2,4})?$/);
+      if (m) {
+        const mon = shortMonths[m[1].slice(0, 3)];
+        let year = num(m[2]) || 2000;
+        if (year && year < 100) year += 2000;
+        return new Date(year, mon ?? 0, 1).getTime();
+      }
+      return s;
+    }
+
+    function sortMonthLabels(labels) {
+      return [...labels].sort((a, b) => {
+        const ka = monthOrderKey(a);
+        const kb = monthOrderKey(b);
+        if (typeof ka === 'number' && typeof kb === 'number') return ka - kb;
+        return String(ka).localeCompare(String(kb));
+      });
+    }
+
+    function weekOrderKey(label) {
+      const s = safeText(label).trim();
+      const m = s.match(/^([A-Za-z]{3,})\s*(PP|B\d+|W\d+|O)?$/i);
+      if (!m) return monthOrderKey(s);
+
+      const monthIdx = {
+        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+      }[m[1].slice(0, 3).toLowerCase()];
+      const seg = safeText(m[2]).toUpperCase();
+
+      let segOrder = 99;
+      if (seg === 'PP') segOrder = 0;
+      else if (/^B\d+$/.test(seg)) segOrder = num(seg.slice(1));
+      else if (/^W\d+$/.test(seg)) segOrder = 20 + num(seg.slice(1));
+      else if (seg === 'O') segOrder = 90;
+
+      if (monthIdx == null) return monthOrderKey(s);
+      return monthIdx * 100 + segOrder;
+    }
+
+    function sortWeekLabels(labels) {
+      return [...labels].sort((a, b) => {
+        const ka = weekOrderKey(a);
+        const kb = weekOrderKey(b);
+        if (typeof ka === 'number' && typeof kb === 'number') return ka - kb;
+        return String(ka).localeCompare(String(kb));
+      });
+    }
+
+    function getRawWeekly(item) {
+      if (Array.isArray(item?.weekly)) return item.weekly;
+      if (Array.isArray(item?.spark)) {
+        return item.spark.map((v, i) => ({
+          week: item.sparkLabels?.[i] || `P${i + 1}`,
+          attendance: v,
+          missing: isMissingAttendanceValue(v)
+        }));
+      }
+      return [];
+    }
+
+    function getOverviewSectionRows(sectionType) {
+      const source = sectionType === 'cells' ? (rawPayload.cells || []) : (rawPayload.services || []);
+      const grouped = new Map();
+
+      source.forEach((row, idx) => {
+        const subgroup = safeText(row.group || row.region || row.subgroup || row.cluster, 'Ungrouped');
+        const key = subgroup.toLowerCase();
+
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            id: `overview-${sectionType}-${slugify(subgroup)}-${idx}`,
+            type: `overview-${sectionType}`,
+            name: subgroup,
+            group: subgroup,
+            labels: [],
+            series: [],
+            reporting_pct: 0,
+            membership: 0,
+            needs_attention_count: 0,
+            needs_attention_names: [],
+            hasMissingReports: false,
+            isMonthlyData: false,
+            monthOnMonthPct: 0,
+            last3MonthsAvg: 0,
+            fullYearTotal: 0,
+            trend: { direction: 'flat', pct: 0, classification: 'Flat' },
+            needsAttentionReasons: null
+          });
+        }
+
+        const bucket = grouped.get(key);
+        if (sectionType === 'cells') {
+          bucket.membership += num(row.membership || row.members || row.member_count);
+        }
+
+        const rowNorm = normalizeItem(row, idx, sectionType);
+        if (rowNorm.needsAttentionReasons?.length || rowNorm.hasMissingReports || rowNorm.reporting_pct < 50) {
+          bucket.needs_attention_count += 1;
+          if (rowNorm.name) bucket.needs_attention_names.push(safeText(rowNorm.name));
+        }
+
+        if (!bucket._weeks) bucket._weeks = new Map();
+        const weekly = getRawWeekly(row);
+        weekly.forEach(w => {
+          const lbl = safeText(w.week).trim();
+          if (!lbl) return;
+          if (!bucket._weeks.has(lbl)) {
+            bucket._weeks.set(lbl, { total: 0, reported: 0, expected: 0 });
+          }
+          const cell = bucket._weeks.get(lbl);
+          cell.expected += 1;
+          if (w.missing !== true && !isMissingAttendanceValue(w.attendance)) {
+            cell.reported += 1;
+            cell.total += num(w.attendance);
+          }
+        });
+      });
+
+      return [...grouped.values()].map(bucket => {
+        const labels = sortWeekLabels([...bucket._weeks.keys()]);
+        const series = labels.map(lbl => {
+          const w = bucket._weeks.get(lbl);
+          return w && w.reported > 0 ? w.total : null;
+        });
+
+        const counts = [...bucket._weeks.values()].reduce((acc, w) => {
+          acc.expected += w.expected;
+          acc.reported += w.reported;
+          return acc;
+        }, { expected: 0, reported: 0 });
+
+        const reportingPct = counts.expected ? (counts.reported / counts.expected) * 100 : 0;
+        const seriesPerReporter = labels.map(lbl => {
+          const w = bucket._weeks.get(lbl);
+          return w && w.reported > 0 ? w.total / w.reported : null;
+        });
+        const trend = calcTrendFromSeries(seriesPerReporter, sectionType);
+        const trendDirection = trend.direction;
+        const last3MonthsAvg = avgLastN(series, 3);
+        const fullYearTotal = sumLastN(series, 12);
+        const missingRatio = counts.expected ? (counts.expected - counts.reported) / counts.expected : 0;
+        const weekObjs = labels.map(lbl => bucket._weeks.get(lbl));
+        const recentWeeks = weekObjs.slice(-6);
+        const recentExpected = sum(recentWeeks.map(w => num(w?.expected)));
+        const recentReported = sum(recentWeeks.map(w => num(w?.reported)));
+        const recentReportingPct = recentExpected ? (recentReported / recentExpected) * 100 : 100;
+
+        let monthOnMonthPct = 0;
+        if (seriesPerReporter.length >= 2) {
+          const prev = num(seriesPerReporter[seriesPerReporter.length - 2]);
+          const curr = num(seriesPerReporter[seriesPerReporter.length - 1]);
+          monthOnMonthPct = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+        }
+
+        return {
+          ...bucket,
+          labels,
+          series,
+          reporting_pct: clamp(reportingPct, 0, 100),
+          hasMissingReports: missingRatio > 0,
+          missingRatio: clamp(missingRatio, 0, 1),
+          recentReportingPct: clamp(recentReportingPct, 0, 100),
+          monthOnMonthPct,
+          last3MonthsAvg,
+          fullYearTotal,
+          needsAttentionNames: unique(bucket.needs_attention_names || []),
+          trend: { ...trend, direction: trendDirection },
+          needsAttentionReasons: bucket.needs_attention_count > 0 ? [`Needs Attention: ${bucket.needs_attention_count}`] : null
+        };
+      }).sort((a, b) => a.group.localeCompare(b.group));
+    }
+
+    function buildOverviewRegionalRow(sectionType, subgroupRows) {
+      const source = sectionType === 'cells' ? (rawPayload.cells || []) : (rawPayload.services || []);
+      const weeks = new Map();
+
+      source.forEach(row => {
+        getRawWeekly(row).forEach(w => {
+          const lbl = safeText(w.week).trim();
+          if (!lbl) return;
+
+          if (!weeks.has(lbl)) {
+            weeks.set(lbl, { total: 0, reported: 0, expected: 0 });
+          }
+
+          const cell = weeks.get(lbl);
+          cell.expected += 1;
+          if (w.missing !== true && !isMissingAttendanceValue(w.attendance)) {
+            cell.reported += 1;
+            cell.total += num(w.attendance);
+          }
+        });
+      });
+
+      const labels = sortWeekLabels([...weeks.keys()]);
+      const series = labels.map(lbl => {
+        const w = weeks.get(lbl);
+        return w && w.reported > 0 ? w.total : null;
+      });
+
+      const counts = [...weeks.values()].reduce((acc, w) => {
+        acc.expected += w.expected;
+        acc.reported += w.reported;
+        return acc;
+      }, { expected: 0, reported: 0 });
+
+      const seriesPerReporter = labels.map(lbl => {
+        const w = weeks.get(lbl);
+        return w && w.reported > 0 ? w.total / w.reported : null;
+      });
+      const trend = calcTrendFromSeries(seriesPerReporter, sectionType);
+      const trendDirection = trend.direction;
+      const totalNeedsAttention = (subgroupRows || []).reduce((s, r) => s + num(r.needs_attention_count), 0);
+      const missingRatio = counts.expected ? (counts.expected - counts.reported) / counts.expected : 0;
+      const weekObjs = labels.map(lbl => weeks.get(lbl));
+      const recentWeeks = weekObjs.slice(-6);
+      const recentExpected = sum(recentWeeks.map(w => num(w?.expected)));
+      const recentReported = sum(recentWeeks.map(w => num(w?.reported)));
+      const recentReportingPct = recentExpected ? (recentReported / recentExpected) * 100 : 100;
+
+      let monthOnMonthPct = 0;
+      if (seriesPerReporter.length >= 2) {
+        const prev = num(seriesPerReporter[seriesPerReporter.length - 2]);
+        const curr = num(seriesPerReporter[seriesPerReporter.length - 1]);
+        monthOnMonthPct = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+      }
+
+      return {
+        id: `overview-${sectionType}-regional`,
+        type: `overview-${sectionType}`,
+        name: sectionType === 'cells' ? 'Regional Cells Total' : 'Regional Services Total',
+        group: 'Regional',
+        labels,
+        series,
+        reporting_pct: clamp(counts.expected ? (counts.reported / counts.expected) * 100 : 0, 0, 100),
+        membership: sectionType === 'cells' ? (subgroupRows || []).reduce((s, r) => s + num(r.membership), 0) : 0,
+        needs_attention_count: totalNeedsAttention,
+        hasMissingReports: missingRatio > 0,
+        missingRatio: clamp(missingRatio, 0, 1),
+        recentReportingPct: clamp(recentReportingPct, 0, 100),
+        isMonthlyData: false,
+        monthOnMonthPct,
+        last3MonthsAvg: avgLastN(series, 3),
+        fullYearTotal: sumLastN(series, 12),
+        total: series.length ? num(series[series.length - 1]) : 0,
+        trend: { ...trend, direction: trendDirection },
+        needsAttentionReasons: totalNeedsAttention > 0 ? [`Needs Attention: ${totalNeedsAttention}`] : null
+      };
+    }
+
+    // CELLS: Growth requires sustained movement, not a bounce-back after a dip.
+    function calcTrendForCells(series) {
+      if (!Array.isArray(series) || series.length < 2) {
+        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient' };
+      }
+
+      const recent3 = series.slice(-3);
+      const hasRecentReport = recent3.some(v => v !== null && v !== undefined && v !== '' && Number.isFinite(num(v)));
+      if (!hasRecentReport) {
+        return { direction: 'flat', pct: 0, classification: 'Insufficient data', confidence: 'insufficient', tags: [] };
+      }
+
+      const totalPoints = series.length;
+      const clean = validSeriesValues(series);
+      const validCount = clean.length;
+      const missingCount = Math.max(totalPoints - validCount, 0);
+      const hasMissing = missingCount > 0;
+
+      if (validCount < 3) {
+        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient' };
+      }
+
+      const confidence = validCount === 3 ? 'low' : 'high';
+
+      const windowSize = validCount >= 6 ? 3 : 2;
+      const prevWindow = clean.slice(-(windowSize * 2), -windowSize);
+      const latestWindow = clean.slice(-windowSize);
+
+      if (!prevWindow.length || !latestWindow.length) {
+        return { direction: 'flat', pct: 0, classification: mapTrendLabel('flat', confidence), confidence };
+      }
+
+      const prevAvg = avg(prevWindow);
+      const lastAvg = avg(latestWindow);
+      const pctChange = prevAvg === 0 ? (lastAvg > 0 ? 100 : 0) : ((lastAvg - prevAvg) / prevAvg) * 100;
+      const trendThreshold = 4;
+
+      const latestThree = clean.slice(-3);
+      const supportiveWeeks = latestThree.filter(v => v > prevAvg).length;
+
+      const recentForDiffs = clean.slice(-6);
+      const diffs = [];
+      for (let i = 1; i < recentForDiffs.length; i++) {
+        diffs.push(recentForDiffs[i] - recentForDiffs[i - 1]);
+      }
+      const nonZeroDiffs = diffs.filter(d => d !== 0);
+      const upMoves = nonZeroDiffs.filter(d => d > 0).length;
+      const downMoves = nonZeroDiffs.filter(d => d < 0).length;
+      const moveCount = Math.max(nonZeroDiffs.length, 1);
+      const directionBias = Math.abs(upMoves - downMoves) / moveCount;
+
+      let alternation = 0;
+      for (let i = 1; i < nonZeroDiffs.length; i++) {
+        if ((nonZeroDiffs[i] > 0 && nonZeroDiffs[i - 1] < 0) || (nonZeroDiffs[i] < 0 && nonZeroDiffs[i - 1] > 0)) {
+          alternation++;
+        }
+      }
+
+      const recent = clean.slice(-6);
+      const windowMax = Math.max(...recent, 0);
+      const windowMin = Math.min(...recent, 0);
+      const swingRatio = (windowMax - windowMin) / Math.max(prevAvg, lastAvg, 1);
+
+      // Recent direction override: latest 2-3 valid weeks drive final direction.
+      const recentDirectionWindow = clean.length >= 3 ? clean.slice(-3) : clean.slice(-2);
+      const recentDirectionDiffs = [];
+      for (let i = 1; i < recentDirectionWindow.length; i++) {
+        recentDirectionDiffs.push(recentDirectionWindow[i] - recentDirectionWindow[i - 1]);
+      }
+      const recentDownMoves = recentDirectionDiffs.filter(d => d < 0).length;
+      const recentUpMoves = recentDirectionDiffs.filter(d => d > 0).length;
+      const consistentRecentDecline =
+        recentDirectionDiffs.length > 0 &&
+        recentDirectionDiffs.every(d => d <= 0) &&
+        recentDownMoves > 0;
+      const recentDirectionIsDown = recentDownMoves > recentUpMoves;
+
+      // Recovery guard: a deep dip in previous window followed by return near baseline is "Recovered", not "Growing".
+      const baselinePool = clean.length >= 9 ? clean.slice(-9, -3) : clean.slice(0, -3);
+      const baselineAvg = baselinePool.length ? avg(baselinePool) : prevAvg;
+      const prevMin = Math.min(...prevWindow);
+      const hadAbnormalDip = baselineAvg > 0 && prevMin <= baselineAvg * 0.75;
+      const returnedNearBaseline =
+        baselineAvg > 0 &&
+        lastAvg >= baselineAvg * 0.92 &&
+        lastAvg <= baselineAvg * 1.12;
+      const isRecovery = hadAbnormalDip && returnedNearBaseline;
+      const isPartialRecovery = hadAbnormalDip && !returnedNearBaseline && lastAvg >= baselineAvg * 0.70;
+
+      const first4 = clean.length >= 4 ? clean.slice(0, 4) : clean;
+      const last4 = clean.length >= 4 ? clean.slice(-4) : clean;
+      const structuralDecline =
+        clean.length >= 6 &&
+        avg(first4) > 0 &&
+        avg(last4) < avg(first4) * 0.7;
+
+      let direction = 'flat';
+      let classification = mapTrendLabel('flat', confidence);
+      const tags = [];
+      const latest = clean[clean.length - 1];
+      const prevLatest = clean.length >= 2 ? clean[clean.length - 2] : 0;
+      const sharpDrop = prevLatest > 0 && latest <= prevLatest * 0.5;
+
+      if (structuralDecline) {
+        direction = 'down';
+        classification = 'Declining';
+      } else if (consistentRecentDecline) {
+        direction = 'down';
+        classification = 'Declining';
+      } else if (swingRatio > 0.25 && directionBias < 0.35 && alternation >= 2) {
+        direction = 'volatile';
+        classification = 'Volatile';
+      } else if (pctChange <= -trendThreshold && downMoves >= Math.max(1, Math.floor(moveCount / 2))) {
+        direction = 'down';
+        classification = 'Declining';
+      } else if (isRecovery) {
+        direction = 'flat';
+        classification = 'Recovered';
+      } else if (isPartialRecovery) {
+        direction = 'flat';
+        classification = 'Partial Recovery';
+      } else if (
+        pctChange >= trendThreshold &&
+        lastAvg > prevAvg &&
+        supportiveWeeks >= 2 &&
+        upMoves >= downMoves + 1 &&
+        !recentDirectionIsDown &&
+        !isRecovery
+      ) {
+        direction = 'up';
+        classification = mapTrendLabel('up', hasMissing || confidence === 'low' ? 'low' : 'high');
+      } else if (pctChange > 0.5 && lastAvg > prevAvg) {
+        direction = 'up';
+        classification = mapTrendLabel('up', 'low');
+      } else if (Math.abs(pctChange) <= trendThreshold) {
+        direction = 'flat';
+        classification = mapTrendLabel('flat', confidence);
+      }
+
+      // Sharp drop should override soft outcomes, but never a strong existing decline.
+      if (sharpDrop && classification !== 'Declining') {
+        direction = 'down';
+        classification = 'Declining';
+      }
+
+      if (sharpDrop) tags.push('Sharp Drop');
+
+      return {
+        direction,
+        pct: pctChange,
+        classification,
+        confidence,
+        tags
+      };
+    }
+
+    // SERVICES: Simplified trend logic (rolling average only)
+    function calcTrendForServices(series) {
+      if (!Array.isArray(series) || series.length < 2) {
+        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient', tags: [] };
+      }
+
+      const recent3 = series.slice(-3);
+      const hasRecentReport = recent3.some(v => v !== null && v !== undefined && v !== '' && Number.isFinite(num(v)));
+      if (!hasRecentReport) {
+        return { direction: 'flat', pct: 0, classification: 'Insufficient data', confidence: 'insufficient', tags: [] };
+      }
+
+      const clean = validSeriesValues(series);
+      if (clean.length < 2) {
+        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient', tags: [] };
+      }
+
+      const recentDirectionWindow = clean.length >= 4 ? clean.slice(-4) : clean.slice(-3);
+      const recentDirectionDiffs = [];
+      for (let i = 1; i < recentDirectionWindow.length; i++) {
+        recentDirectionDiffs.push(recentDirectionWindow[i] - recentDirectionWindow[i - 1]);
+      }
+      const recentPctDrops = [];
+      for (let i = 1; i < recentDirectionWindow.length; i++) {
+        const prev = recentDirectionWindow[i - 1];
+        const curr = recentDirectionWindow[i];
+        const dropPct = prev > 0 ? ((prev - curr) / prev) * 100 : 0;
+        recentPctDrops.push(dropPct);
+      }
+
+      const threeConsecutiveDeclines =
+        recentDirectionDiffs.length >= 3 &&
+        recentDirectionDiffs.slice(-3).every(d => d < 0);
+      const twoStrongDeclines =
+        recentDirectionDiffs.length >= 2 &&
+        recentDirectionDiffs.slice(-2).every(d => d < 0) &&
+        recentPctDrops.slice(-2).every(p => p > 10);
+
+      const consistentRecentGrowth =
+        recentDirectionDiffs.length > 0 &&
+        recentDirectionDiffs.every(d => d >= 0) &&
+        recentDirectionDiffs.some(d => d > 0);
+
+      const recentFirst = recentDirectionWindow[0];
+      const recentLast = recentDirectionWindow[recentDirectionWindow.length - 1];
+      const pctChange = recentFirst === 0 ? (recentLast > 0 ? 100 : 0) : ((recentLast - recentFirst) / recentFirst) * 100;
+
+      const recentMax = Math.max(...recentDirectionWindow);
+      const recentMin = Math.min(...recentDirectionWindow);
+      const recentRangeRatio = (recentMax - recentMin) / Math.max(avg(recentDirectionWindow), 1);
+      let alternation = 0;
+      for (let i = 1; i < recentDirectionDiffs.length; i++) {
+        if ((recentDirectionDiffs[i] > 0 && recentDirectionDiffs[i - 1] < 0) || (recentDirectionDiffs[i] < 0 && recentDirectionDiffs[i - 1] > 0)) {
+          alternation++;
+        }
+      }
+      const isVolatile = recentRangeRatio >= 0.35 && alternation >= 1;
+      const hasStrongGrowthEvidence = clean.length >= 3;
+      const hasStrongDeclineEvidence = clean.length >= 2;
+      const latest = clean[clean.length - 1];
+      const prevLatest = clean.length >= 2 ? clean[clean.length - 2] : 0;
+      const serviceSharpDropFactor = prevLatest < 10 ? 0.5 : 0.75;
+      const sharpDrop = prevLatest > 0 && latest <= prevLatest * serviceSharpDropFactor;
+      const seriesMean = avg(clean);
+      const seriesMax = Math.max(...clean);
+      const seriesMin = Math.min(...clean);
+      const variationRatio = seriesMean > 0 ? (seriesMax - seriesMin) / seriesMean : 0;
+      const newHigh = latest === seriesMax && variationRatio > 0.1;
+      const baselinePool = clean.length >= 6 ? clean.slice(-6, -2) : clean.slice(0, -2);
+      const baselineAvg = baselinePool.length ? avg(baselinePool) : 0;
+      const recentTwo = clean.slice(-2);
+      const recentLift = recentTwo.length === 2 && recentTwo[1] > recentTwo[0];
+      const hadDip = baselineAvg > 0 && Math.min(...baselinePool) <= baselineAvg * 0.8;
+      const isRecovered = hadDip && recentLift && recentTwo[1] >= baselineAvg * 0.9;
+      const isRecovering = hadDip && recentLift && recentTwo[1] >= baselineAvg * 0.75 && recentTwo[1] < baselineAvg * 0.9;
+
+      let direction = 'flat';
+      let classification = mapTrendLabel('flat', clean.length === 3 ? 'low' : 'high');
+      const confidence = clean.length === 3 ? 'low' : 'high';
+      const tags = [];
+
+      if (hasStrongDeclineEvidence && (threeConsecutiveDeclines || twoStrongDeclines)) {
+        direction = 'down';
+        classification = 'Declining';
+      } else if (isVolatile) {
+        direction = 'volatile';
+        classification = 'Volatile';
+      } else if (isRecovered) {
+        direction = 'flat';
+        classification = 'Recovered';
+      } else if (isRecovering) {
+        direction = 'flat';
+        classification = 'Recovering';
+      } else if (hasStrongGrowthEvidence && consistentRecentGrowth && pctChange >= 9) {
+        direction = 'up';
+        classification = mapTrendLabel('up', confidence);
+      } else if (Math.abs(pctChange) < 9) {
+        direction = 'flat';
+        classification = mapTrendLabel('flat', confidence);
+      }
+
+      // Sharp drop should override soft outcomes, but never a strong existing decline.
+      if (sharpDrop && classification !== 'Declining') {
+        direction = 'down';
+        classification = 'Declining';
+      }
+
+      if (sharpDrop) {
+        tags.push('Sharp Drop');
+      }
+      if (newHigh) {
+        tags.push('New High');
+      }
+
+      return {
+        direction,
+        pct: pctChange,
+        classification,
+        confidence,
+        tags
+      };
+    }
+
+    // MONTHLY: Simple month-on-month comparison
+    function calcTrendForMonthly(series) {
+      if (!Array.isArray(series) || series.length < 2) {
+        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient' };
+      }
+
+      const clean = validSeriesValues(series);
+      if (clean.length < 2) {
+        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient' };
+      }
+      const prev = clean[clean.length - 2];
+      const curr = clean[clean.length - 1];
+      const pctChange = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+
+      let direction = 'flat';
+      const confidence = clean.length < 3 ? 'low' : 'high';
+      let classification = mapTrendLabel('flat', confidence);
+      
+      if (clean.length >= 3 && pctChange > 2) {
+        direction = 'up';
+        classification = mapTrendLabel('up', confidence);
+      } else if (clean.length >= 3 && pctChange < -2) {
+        direction = 'down';
+        classification = 'Declining';
+      }
+
+      return {
+        direction,
+        pct: pctChange,
+        classification,
+        confidence
+      };
+    }
+
+    // Router: Apply trend logic based on data type
+    function calcTrendFromSeries(series, dataType) {
+      if (dataType === 'services') {
+        return calcTrendForServices(series);
+      } else if (dataType === 'monthly') {
+        return calcTrendForMonthly(series);
+      } else {
+        // 'cells' or 'overview' - use full logic
+        return calcTrendForCells(series);
+      }
+    }
+
+    function isDeclining(series) {
+      const clean = validSeriesValues(series);
+      if (clean.length < 3) return false;
+      // Use last 3 periods to determine if declining
+      const lastThree = clean.slice(-3);
+      let downCount = 0;
+      for (let i = 1; i < lastThree.length; i++) {
+        if (lastThree[i] <= lastThree[i - 1]) downCount++;
+      }
+      return downCount >= 2;
+    }
+
+    // Determine if a value is a valid report (0 or positive) vs missing data
+    function isValidReport(val, rawValue) {
+      // If raw value is explicitly marked as unreported/missing
+      if (rawValue === null || rawValue === undefined || rawValue === '' || rawValue === 'N/A' || rawValue === 'no report') {
+        return false;
+      }
+      return Number.isFinite(num(val));
+    }
+
+    // Calculate what needs attention about this item (reason-based)
+    function calcNeedsAttentionReasons(item) {
+      const reasons = [];
+      const isServiceItem = item?.type === 'services' || item?.type === 'overview-services';
+      
+      // Low reporting
+      if (item.reporting_pct < 50) {
+        reasons.push('Low reporting');
+      }
+      
+      // Missing reports
+      if (num(item.missingRatio) > 0) {
+        reasons.push('Missing Reports');
+      }
+
+      if (isServiceItem && item.trend?.classification === 'Declining') {
+        reasons.push('Declining trend');
+      }
+
+      if (isServiceItem && item.trend?.classification === 'Volatile') {
+        reasons.push('Volatility');
+      }
+
+      const clean = validSeriesValues(item.series);
+
+      if (clean.length >= 2) {
+        const prev = clean[clean.length - 2];
+        const latest = clean[clean.length - 1];
+        const sharpDropThreshold = isServiceItem ? (prev < 10 ? 0.5 : 0.75) : 0.5;
+        if (prev > 0 && latest < prev * sharpDropThreshold) {
+          reasons.push('Sharp drop');
+        }
+      }
+      
+      if (clean.length >= 3) {
+        const fullAvg = avg(clean);
+        const last3Avg = avg(clean.slice(-3));
+        if (fullAvg > 0 && last3Avg < fullAvg * 0.5) {
+          reasons.push('Persistent low');
+        }
+      }
+
+      if (num(item.recentReportingPct) <= 50) {
+        reasons.push('Inconsistent reporter');
+      }
+
+      // Zero attendance streak (last 3 consecutive valid periods are zero)
+      if (clean.length >= 3) {
+        let zeroRun = 0;
+        for (let i = clean.length - 1; i >= 0; i--) {
+          if (num(clean[i]) === 0) zeroRun++;
+          else break;
+        }
+        if (zeroRun >= 3) {
+          reasons.push('Zero streak');
+        }
+      }
+      
+      return unique(reasons).length > 0 ? unique(reasons) : null;
+    }
+
+    function currentItems() {
+      if (currentTopTab === 'overview') return rawPayload.overview || [];
+      if (currentTopTab === 'cells') return rawPayload.cells || [];
+      if (currentTopTab === 'services') return rawPayload.services || [];
+      return [];
+    }
+
+    function normalizeItems(items) {
+      return (items || []).map((item, idx) => normalizeItem(item, idx));
+    }
+
+    function normalizeItem(item, idx, typeOverride = currentTopTab) {
+      const baseName = item.name || item.cell || item.service || item.group_name || item.title || `Item ${idx + 1}`;
+      const group = item.group || item.region || item.subgroup || item.cluster || 'Ungrouped';
+      const leader = item.leader || item.cell_leader || item.service_leader || item.owner || '';
+      const membership = num(item.membership) || num(item.members) || num(item.member_count) || 0;
+      const reportingPct = num(item.reporting_pct) || num(item.reportingRate) || num(item.reportingPercent) || 0;
+
+      const monthlyObj = item.monthly || item.months || item.monthOnMonth || null;
+      const weeklyArr = Array.isArray(item.weekly) ? item.weekly : null;
+
+      let labels = [];
+      let series = [];
+      let isMonthlyData = false;
+      let weeklyMissingReports = false;
+      let missingReportWeeks = [];
+      let expectedCount = 0;
+      let reportedCount = 0;
+      let recentExpectedCount = 0;
+      let recentReportedCount = 0;
+
+      if (monthlyObj && typeof monthlyObj === 'object' && !Array.isArray(monthlyObj)) {
+        isMonthlyData = true;
+        labels = sortMonthLabels(Object.keys(monthlyObj));
+        series = labels.map(label => num(monthlyObj[label]));
+      } else if (weeklyArr && weeklyArr.length) {
+        labels = weeklyArr.map((w, i) => safeText(w?.week, `P${i + 1}`));
+        series = weeklyArr.map(w => {
+          if (w?.missing === true) return null;
+          if (isMissingAttendanceValue(w?.attendance)) return null;
+          return num(w.attendance);
+        });
+        expectedCount = weeklyArr.length;
+        reportedCount = series.filter(v => v !== null).length;
+        const recentWeekly = weeklyArr.slice(-6);
+        recentExpectedCount = recentWeekly.length;
+        recentReportedCount = recentWeekly.filter(w => !(w?.missing === true || isMissingAttendanceValue(w?.attendance))).length;
+        weeklyMissingReports = weeklyArr.some(w => w?.missing === true || isMissingAttendanceValue(w?.attendance));
+        missingReportWeeks = weeklyArr
+          .filter(w => w?.missing === true || isMissingAttendanceValue(w?.attendance))
+          .map((w, i) => safeText(w?.week, `P${i + 1}`))
+          .filter(Boolean);
+      } else if (Array.isArray(item.spark)) {
+        labels = item.spark.map((_, i) => item.sparkLabels?.[i] || `P${i + 1}`);
+        series = item.spark.map(v => isMissingAttendanceValue(v) ? null : num(v));
+        expectedCount = item.spark.length;
+        reportedCount = series.filter(v => v !== null).length;
+        const recentSpark = item.spark.slice(-6);
+        recentExpectedCount = recentSpark.length;
+        recentReportedCount = recentSpark.filter(v => !isMissingAttendanceValue(v)).length;
+        missingReportWeeks = item.spark
+          .map((v, i) => ({ v, lbl: item.sparkLabels?.[i] || `P${i + 1}` }))
+          .filter(x => isMissingAttendanceValue(x.v))
+          .map(x => safeText(x.lbl))
+          .filter(Boolean);
+      } else {
+        const total = num(item.total_attendance) || num(item.attendance) || num(item.total) || num(item.avg) ||
+          num(item.pp) + num(item.b1) + num(item.b2) + num(item.b3) + num(item.o);
+
+        labels = total ? ['Current'] : [];
+        series = total ? [total] : [];
+      }
+
+      const hasMissingReports = weeklyMissingReports || series.some((val, i) => {
+        let rawVal = val;
+        if (isMonthlyData && monthlyObj) {
+          rawVal = monthlyObj[labels[i]];
+        } else if (weeklyArr && weeklyArr[i]) {
+          rawVal = weeklyArr[i]?.attendance;
+        } else if (Array.isArray(item.spark)) {
+          rawVal = item.spark[i];
+        }
+        return !isValidReport(val, rawVal);
+      });
+      const missingRatio = expectedCount > 0 ? (expectedCount - reportedCount) / expectedCount : (hasMissingReports ? 1 : 0);
+      const recentReportingPct = recentExpectedCount > 0 ? (recentReportedCount / recentExpectedCount) * 100 : 100;
+      const computedReportingPct = expectedCount > 0 ? (reportedCount / expectedCount) * 100 : reportingPct;
+
+      const total =
+        series.length
+          ? series[series.length - 1]
+          : (num(item.total_attendance) || num(item.attendance) || num(item.total) || num(item.avg) ||
+             num(item.pp) + num(item.b1) + num(item.b2) + num(item.b3) + num(item.o));
+
+      const average =
+        num(item.avg_attendance) ||
+        num(item.average) ||
+        num(item.avg) ||
+        (series.length ? avg(series) : 0);
+
+      // Determine data type for trend calculation
+      let dataType = typeOverride;
+      if (isMonthlyData) dataType = 'monthly';
+
+      const trend = calcTrendFromSeries(series, dataType);
+      const trendDirection = trend.direction;
+
+      const last3MonthsAvg = avgLastN(series, 3);
+      const fullYearTotal = sumLastN(series, 12);
+
+      // Calculate month-on-month % change
+      let monthOnMonthPct = 0;
+      if (series.length >= 2) {
+        const prev = num(series[series.length - 2]);
+        const curr = num(series[series.length - 1]);
+        monthOnMonthPct = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+      }
+
+      const normalized = {
+        id: item.id || slugify(`${typeOverride}-${group}-${baseName}-${idx}`),
+        raw: item,
+        type: typeOverride,
+        name: safeText(baseName),
+        group: safeText(group),
+        leader: safeText(leader),
+        sc_code: safeText(item.sc_code || item.code || ''),
+        membership,
+        reporting_pct: clamp(computedReportingPct, 0, 100),
+        labels,
+        series,
+        total,
+        avg_attendance: average,
+        last3MonthsAvg,
+        fullYearTotal,
+        monthOnMonthPct,
+        isMonthlyData,
+        hasMissingReports: missingRatio > 0,
+        missingRatio: clamp(missingRatio, 0, 1),
+        recentReportingPct: clamp(recentReportingPct, 0, 100),
+        missingReportWeeks: unique(missingReportWeeks),
+        trend: {
+          ...trend,
+          direction: trendDirection
+        }
+      };
+
+      // Calculate needs attention reasons based on normalized data
+      normalized.needsAttentionReasons = calcNeedsAttentionReasons(normalized);
+
+      return normalized;
+    }
+
+    function initTopTabs() {
+      const host = document.getElementById('top-tabs');
+      host.innerHTML = '';
+
+      const topTabs = IS_SUBGROUP_VIEW
+        ? [
+            { key: 'overview', label: 'SG Overview' },
+            { key: 'cells', label: 'Cells' },
+            { key: 'services', label: 'Services' }
+          ]
+        : [
+            { key: 'regional', label: 'Regional' },
+            { key: 'overview', label: 'SG Overview' },
+            { key: 'cells', label: 'Cells' },
+            { key: 'services', label: 'Services' }
+          ];
+
+      if (IS_SUBGROUP_VIEW && currentTopTab === 'regional') {
+        currentTopTab = 'overview';
+      }
+
+
+
+      topTabs.forEach(def => {
+        const btn = document.createElement('button');
+        btn.className = `tab-btn ${currentTopTab === def.key ? 'active' : ''}`;
+        btn.textContent = def.label;
+        btn.addEventListener('click', () => {
+          currentTopTab = def.key;
+          activeGroup = 'all';
+          initTopTabs();
+          initGroupTabs();
+          render();
+        });
+        host.appendChild(btn);
+      });
+    }
+
+    function initGroupTabs() {
+      const tabsEl = document.getElementById('tabs');
+      tabsEl.innerHTML = '';
+
+      if (currentTopTab === 'overview' || currentTopTab === 'regional') {
+        tabsEl.style.display = 'none';
+        return;
+      }
+      tabsEl.style.display = 'flex';
+
+      if (IS_SUBGROUP_VIEW) {
+        tabsEl.style.display = 'none';
+        return;
+      }
+
+      const allTab = document.createElement('button');
+      allTab.className = `tab-btn ${activeGroup === 'all' ? 'active' : ''}`;
+      allTab.textContent = 'All Groups';
+      allTab.addEventListener('click', () => {
+        activeGroup = 'all';
+        initGroupTabs();
+        render();
+      });
+      tabsEl.appendChild(allTab);
+
+      const groups = unique(normalizeItems(currentItems()).map(d => d.group))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b));
+
+      groups.forEach(g => {
+        const btn = document.createElement('button');
+        btn.className = `tab-btn ${activeGroup === g ? 'active' : ''}`;
+        btn.textContent = g;
+        btn.addEventListener('click', () => {
+          activeGroup = g;
+          initGroupTabs();
+          render();
+        });
+        tabsEl.appendChild(btn);
+      });
+    }
+
+    function buildSummary(data) {
+      const totalItems = data.length;
+      const avgAttendance = data.length ? Math.round(data.reduce((s, d) => s + num(d.last3MonthsAvg), 0) / data.length) : 0;
+      const trendingUp = data.filter(d => d.trend.classification === 'Growing').length;
+      const trendingDown = data.filter(d => d.trend.classification === 'Declining').length;
+      const reportingAvg = data.length ? Math.round(data.reduce((s, d) => s + num(d.reporting_pct), 0) / data.length) : 0;
+
+      const label =
+        currentTopTab === 'overview' ? 'Groups' :
+        currentTopTab === 'regional' ? 'Regional' :
+        currentTopTab === 'services' ? 'Services' :
+        'Cells';
+
+      const summaryBar = document.getElementById('summary-bar');
+      summaryBar.innerHTML = `
+        <div class="stat-pill" data-filter="all"><div class="dot" style="background:#6c63ff"></div><strong>${formatInt(totalItems)}</strong> ${label}</div>
+        <div class="stat-pill" data-filter="reporting"><div class="dot" style="background:#9ca3af"></div><strong>${formatInt(reportingAvg)}%</strong> Reporting</div>
+        <div class="stat-pill" data-filter="trending-up"><div class="dot" style="background:#26de81"></div><strong>${formatInt(trendingUp)}</strong> Stable Growing</div>
+        <div class="stat-pill" data-filter="trending-down"><div class="dot" style="background:#fc5c65"></div><strong>${formatInt(trendingDown)}</strong> Declining</div>
+      `;
+      
+      // Add click handlers to summary pills
+      summaryBar.querySelectorAll('.stat-pill').forEach(pill => {
+        pill.style.cursor = 'pointer';
+        pill.addEventListener('click', (e) => {
+          const filterType = e.currentTarget.getAttribute('data-filter');
+          if (filterType === 'all') {
+            document.getElementById('trend-filter').value = 'all';
+          } else if (filterType === 'trending-up') {
+            document.getElementById('trend-filter').value = 'up';
+          } else if (filterType === 'trending-down') {
+            document.getElementById('trend-filter').value = 'down';
+          } else if (filterType === 'reporting') {
+            document.getElementById('sort-select').value = 'reporting';
+          }
+          render();
+        });
+      });
+
+      // Show last updated timestamp if available
+      if (rawPayload.lastUpdated) {
+        const updatedEl = document.getElementById('last-updated');
+        const timeEl = document.getElementById('updated-time');
+        const date = new Date(rawPayload.lastUpdated);
+        const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        timeEl.textContent = timeStr;
+        updatedEl.style.display = 'block';
+      }
+    }
+
+    function drawSparkline(canvas, series, trend) {
+      const ctx = canvas.getContext('2d');
+      const W = canvas.offsetWidth * 2;
+      const H = 88;
+      canvas.width = W;
+      canvas.height = H;
+
+      const pts = validSeriesValues(series);
+      if (!pts.length) return;
+
+      const max = Math.max(...pts, 1);
+      const min = Math.min(...pts, 0);
+      const range = Math.max(max - min, 1);
+      const pad = 8;
+      const step = pts.length > 1 ? (W - pad * 2) / (pts.length - 1) : 0;
+
+      const color =
+        trend === 'up' || trend === 'emerging' ? '#26de81' :
+        trend === 'down' ? '#fc5c65' :
+        trend === 'volatile' ? '#f7b731' :
+        '#9ca3af';
+
+      ctx.beginPath();
+      pts.forEach((v, i) => {
+        const x = pad + i * step;
+        const y = H - pad - ((v - min) / range) * (H - pad * 2);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      const endX = pad + (pts.length - 1) * step;
+      ctx.lineTo(endX, H - pad);
+      ctx.lineTo(pad, H - pad);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, color + '44');
+      grad.addColorStop(1, color + '00');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.beginPath();
+      pts.forEach((v, i) => {
+        const x = pad + i * step;
+        const y = H - pad - ((v - min) / range) * (H - pad * 2);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      const lx = endX;
+      const ly = H - pad - ((pts[pts.length - 1] - min) / range) * (H - pad * 2);
+      ctx.beginPath();
+      ctx.arc(lx, ly, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    function buildRing(pctValue, showLabel = true) {
+      const pctNum = clamp(num(pctValue), 0, 100);
+      const pctLabel = Math.round(pctNum);
+      const r = 12;
+      const c = 2 * Math.PI * r;
+      const dash = (pctNum / 100) * c;
+
+      return `
+        <div class="reporting-ring">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <circle cx="16" cy="16" r="${r}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"></circle>
+            <circle cx="16" cy="16" r="${r}" fill="none" stroke="#6c63ff" stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray="${dash} ${c - dash}"
+              stroke-dashoffset="0"></circle>
+          </svg>
+          <div class="ring-pct">${showLabel ? `${pctLabel}%` : ''}</div>
+        </div>
+      `;
+    }
+
+    function buildCard(d) {
+      const trend = d.trend.direction;
+      const wowClass =
+        trend === 'up' || trend === 'emerging' ? 'up' :
+        trend === 'down' ? 'down' :
+        'flat';
+      const arrow =
+        trend === 'up' ? '&uarr;' :
+        trend === 'emerging' ? '&nearr;' :
+        trend === 'down' ? '&darr;' :
+        '&rarr;';
+      const trendLabelBase = safeText(d?.trend?.classification, '');
+      const trendTags = Array.isArray(d?.trend?.tags) && d.trend.tags.length ? ` &bull; ${d.trend.tags.join(', ')}` : '';
+      const trendLabel = `${trendLabelBase}${trendTags}`;
+      const isOverviewCells = d.type === 'overview-cells';
+      const isOverviewServices = d.type === 'overview-services';
+      const isRegionalCard = safeText(d.group).toLowerCase() === 'regional';
+      const subtitle = (isOverviewCells || isOverviewServices)
+        ? `${isRegionalCard ? 'Regional Summary' : safeText(d.group)}`
+        : `${d.group}${d.leader ? ' - ' + d.leader : ''}${d.sc_code ? ' - ' + d.sc_code : ''}`;
+
+      let stat1Val = formatInt(d.membership);
+      let stat1Lbl = 'Members';
+      let stat2Val = Math.round(d.last3MonthsAvg);
+      let stat2Lbl = '3M Avg';
+
+      if (isOverviewCells) {
+        if (isRegionalCard) {
+          stat1Val = formatInt(d.membership);
+          stat1Lbl = 'Members';
+          stat2Val = formatInt(d.total || 0);
+          stat2Lbl = 'Latest';
+        } else {
+          stat1Val = formatInt(d.membership);
+          stat1Lbl = 'Members';
+          stat2Val = formatInt(d.needs_attention_count || 0);
+          stat2Lbl = 'Needs Attn';
+        }
+      } else if (isOverviewServices) {
+        if (isRegionalCard) {
+          stat1Val = `${Math.round(d.reporting_pct)}%`;
+          stat1Lbl = 'Reporting';
+          stat2Val = safeText(d?.trend?.classification, 'Stable');
+          stat2Lbl = 'Trend';
+        } else {
+          stat1Val = formatInt(d.needs_attention_count || 0);
+          stat1Lbl = 'Needs Attn';
+          stat2Val = `${Math.round(d.reporting_pct)}%`;
+          stat2Lbl = 'Reporting';
+        }
+      } else if (d.type === 'services') {
+        stat1Val = formatInt(d.total || 0);
+        stat1Lbl = 'Latest';
+        stat2Val = `${Math.round(d.reporting_pct)}%`;
+        stat2Lbl = 'Reporting';
+      }
+
+      const card = document.createElement('div');
+      card.className = `card ${trend === 'up' || trend === 'emerging' ? 'trending-up' : trend === 'down' ? 'trending-down' : d.series.length === 0 ? 'no-data' : ''}`;
+
+      // Format attention reasons
+      let reasonsHTML = '';
+      if (!isRegionalCard && d.needsAttentionReasons && d.needsAttentionReasons.length) {
+        reasonsHTML = `<div class="attention-reason">${d.needsAttentionReasons.join(' &bull; ')}</div>`;
+      }
+
+      // Format month-on-month change if applicable
+      let momHTML = '';
+      const monthMeta = getMonthPctMeta(d.series);
+      const lowConf = d?.trend?.confidence === 'low' || d?.trend?.confidence === 'insufficient';
+      if (monthMeta.hasData) {
+        const pctText = formatSecondaryPct(monthMeta, lowConf);
+        momHTML = `<span class="trend-pct ${lowConf ? 'lowconf' : ''}">${pctText}</span>`;
+      }
+
+      card.innerHTML = `
+        <div class="card-header">
+          <div>
+            <div class="card-title">${d.name}</div>
+            <div class="card-sub">${subtitle}</div>
+            ${reasonsHTML}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+            <span class="trend-badge ${wowClass}">${arrow} ${trendLabel}${momHTML}</span>
+            ${buildRing(d.reporting_pct, true)}
+          </div>
+        </div>
+        ${d.series.length
+          ? '<div class="sparkline-wrap"><canvas class="spark"></canvas></div>'
+          : '<div class="no-data-msg">No attendance data available</div>'}
+        ${d.type === 'services'
+          ? ''
+          : `<div class="card-stats">
+              <div class="mini-stat">
+                <div class="val">${stat1Val}</div>
+                <div class="lbl">${stat1Lbl}</div>
+              </div>
+              <div class="mini-stat">
+                <div class="val">${stat2Val}</div>
+                <div class="lbl">${stat2Lbl}</div>
+              </div>
+            </div>`}
+      `;
+
+      if (d.series.length) {
+        requestAnimationFrame(() => {
+          const cvs = card.querySelector('canvas.spark');
+          if (cvs) drawSparkline(cvs, d.series, trend);
+        });
+      }
+
+      card.addEventListener('click', () => openModal(d));
+      return card;
+    }
+
+    function openModal(d) {
+      const isOverviewCells = d.type === 'overview-cells';
+      const isOverviewServices = d.type === 'overview-services';
+      const isServicesTabCard = d.type === 'services';
+      const isRegionalCard = safeText(d.group).toLowerCase() === 'regional';
+      const attentionEl = document.getElementById('modal-attention');
+
+      const monthMeta = getMonthPctMeta(d.series);
+      const threeMonthMeta = getThreeMonthPctMeta(d.series);
+      const lowConf = d?.trend?.confidence === 'low' || d?.trend?.confidence === 'insufficient';
+      const monthText = formatSecondaryPct(monthMeta, lowConf);
+      const threeText = formatSecondaryPct(threeMonthMeta, lowConf);
+      const trendTags = Array.isArray(d?.trend?.tags) && d.trend.tags.length ? d.trend.tags.join(', ') : '';
+
+      document.getElementById('modal-title').textContent = d.name;
+      const baseSub =
+        isRegionalCard
+          ? `Regional Overview - Reporting ${Math.round(d.reporting_pct)}%`
+          : isOverviewCells
+          ? `Cells Overview - Reporting ${Math.round(d.reporting_pct)}%`
+          : isOverviewServices
+            ? `Services Overview - Reporting ${Math.round(d.reporting_pct)}%`
+            : isServicesTabCard
+              ? `Subgroup: ${d.group} - Reporting ${Math.round(d.reporting_pct)}%`
+            : `${titleCase(currentTopTab)} - ${d.group}${d.leader ? ' - ' + d.leader : ''}`;
+      document.getElementById('modal-sub').textContent = `${baseSub} | Trend: ${safeText(d?.trend?.classification, 'Stable')}${trendTags ? ` (${trendTags})` : ''} | Month %: ${monthText} | 3M %: ${threeText}`;
+
+      document.getElementById('modal-stats').innerHTML = `
+        <div class="modal-stat">
+          <div class="val">${
+            isRegionalCard
+              ? (isOverviewServices ? formatInt(d.total || 0) : formatInt(d.membership))
+              : (isOverviewServices ? formatInt(d.needs_attention_count || 0) : isServicesTabCard ? safeText(d.group, '-') : formatInt(d.membership))
+          }</div>
+          <div class="lbl">${
+            isRegionalCard
+              ? (isOverviewServices ? 'Latest' : 'Members')
+              : (isOverviewServices ? 'Needs Attn' : isServicesTabCard ? 'Subgroup' : 'Members')
+          }</div>
+        </div>
+        <div class="modal-stat">
+          <div class="val">${
+            isRegionalCard
+              ? (isOverviewServices ? `${Math.round(d.reporting_pct)}%` : formatInt(d.total || 0))
+              : isServicesTabCard ? `${Math.round(d.reporting_pct)}%` : Math.round(d.last3MonthsAvg)
+          }</div>
+          <div class="lbl">${
+            isRegionalCard
+              ? (isOverviewServices ? 'Reporting' : 'Latest')
+              : isServicesTabCard ? 'Reporting' : '3M Avg'
+          }</div>
+        </div>
+        <div class="modal-stat">
+          <div class="val">${
+            isServicesTabCard
+              ? formatSecondaryPct(monthMeta, lowConf)
+              : `${safeText(d?.trend?.classification, 'Stable')}${Array.isArray(d?.trend?.tags) && d.trend.tags.length ? ` &bull; ${d.trend.tags.join(', ')}` : ''}`
+          }</div>
+          <div class="lbl">${isServicesTabCard ? 'MoM' : 'Trend'}</div>
+        </div>
+      `;
+
+      const startIndex = Math.max(d.labels.length - 3, 1);
+      document.getElementById('wow-body').innerHTML =
+        d.labels.slice(startIndex).map((label, offset) => {
+          const i = startIndex - 1 + offset;
+          const prev = num(d.series[i]);
+          const curr = num(d.series[i + 1]);
+          const change = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+          const cls = change > 0 ? 'pos' : change < 0 ? 'neg' : '';
+          const sign = change > 0 ? '+' : '';
+          return `
+            <tr>
+              <td>${label}</td>
+              <td>${formatInt(prev)}</td>
+              <td>${formatInt(curr)}</td>
+              <td class="${cls}">${sign}${Math.round(change)}%</td>
+            </tr>
+          `;
+        }).join('') || '<tr><td colspan="4" style="color:#6b7280">No trend breakdown available.</td></tr>';
+
+      if (attentionEl) {
+        const hasAttention = !isRegionalCard && (
+          (Array.isArray(d.needsAttentionReasons) && d.needsAttentionReasons.length > 0) ||
+          (Array.isArray(d.needsAttentionNames) && d.needsAttentionNames.length > 0)
+        );
+
+        if (hasAttention) {
+          const reasons = (d.needsAttentionReasons || []).join(' &bull; ');
+          const names = (d.needsAttentionNames || []).join(', ');
+          const namesHtml = names ? `<br><span>Fellowship(s): ${names}</span>` : '';
+          const missingWeeks = (d.missingReportWeeks || []).filter(Boolean);
+          const missingWeeksHtml = missingWeeks.length ? `<br><span>Missing week(s): ${missingWeeks.join(', ')}</span>` : '';
+          attentionEl.innerHTML = `<strong>Needs Attention:</strong> ${reasons || 'Yes'}${missingWeeksHtml}${namesHtml}`;
+          attentionEl.style.display = 'block';
+        } else if (isServicesTabCard) {
+          attentionEl.innerHTML = `<strong>Needs Attention:</strong> None`;
+          attentionEl.style.display = 'block';
+        } else {
+          attentionEl.innerHTML = '';
+          attentionEl.style.display = 'none';
+        }
+      }
+
+      if (modalChart) {
+        modalChart.destroy();
+        modalChart = null;
+      }
+
+      const cvs = document.getElementById('modal-chart');
+      if (d.series.length) {
+        const color =
+          d.trend.direction === 'up' || d.trend.direction === 'emerging' ? '#26de81' :
+          d.trend.direction === 'down' ? '#fc5c65' :
+          d.trend.direction === 'volatile' ? '#f7b731' :
+          '#9ca3af';
+
+        modalChart = new Chart(cvs, {
+          type: 'line',
+          data: {
+            labels: d.labels,
+            datasets: [{
+              data: d.series,
+              borderColor: color,
+              backgroundColor: color + '22',
+              fill: true,
+              tension: 0.35,
+              pointRadius: 4,
+              pointBackgroundColor: color,
+              borderWidth: 2.5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#6b7280', font: { size: 10 } }
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#6b7280', font: { size: 10 } },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      }
+
+      document.getElementById('modal-overlay').classList.add('open');
+    }
+
+    function closeModal(e) {
+      if (e.target === document.getElementById('modal-overlay')) closeModalBtn();
+    }
+
+    function closeModalBtn() {
+      document.getElementById('modal-overlay').classList.remove('open');
+      if (modalChart) {
+        modalChart.destroy();
+        modalChart = null;
+      }
+    }
+
+    function getSortValue(d, sortKey) {
+      if (sortKey === 'name') return d.name.toLowerCase();
+      if (sortKey === 'growth') return d.trend.pct;
+      if (sortKey === 'attendance') return d.fullYearTotal;
+      if (sortKey === 'membership') return d.membership;
+      if (sortKey === 'reporting') return d.reporting_pct;
+      return d.name.toLowerCase();
+    }
+
+    function currentFilteredData() {
+      const query = document.getElementById('search')?.value?.toLowerCase() || '';
+      const sortKey = document.getElementById('sort-select')?.value || 'name';
+      const trendFilter = document.getElementById('trend-filter')?.value || 'all';
+
+      let filtered = normalizeItems(currentItems()).filter(d => {
+        if (activeGroup !== 'all' && d.group !== activeGroup) return false;
+
+        if (
+          query &&
+          !d.name.toLowerCase().includes(query) &&
+          !d.group.toLowerCase().includes(query) &&
+          !d.leader.toLowerCase().includes(query)
+        ) {
+          return false;
+        }
+
+        if (trendFilter !== 'all') {
+          if (trendFilter === 'up' && d.trend.classification !== 'Growing') return false;
+          if (trendFilter === 'emerging' && d.trend.classification !== 'Emerging Growth') return false;
+          if (trendFilter === 'down' && d.trend.classification !== 'Declining') return false;
+          if (trendFilter === 'flat' && d.trend.direction !== 'flat') return false;
+          if (trendFilter === 'volatile' && d.trend.classification !== 'Volatile') return false;
+          if (trendFilter === 'attention' && !isDeclining(d.series)) return false;
+          if (trendFilter === 'missing' && !d.hasMissingReports) return false;
+        }
+
+        return true;
+      });
+
+      filtered.sort((a, b) => {
+        if (sortKey === 'missing') {
+          const aMissing = a.hasMissingReports;
+          const bMissing = b.hasMissingReports;
+          if (aMissing && !bMissing) return -1;
+          if (!aMissing && bMissing) return 1;
+          return String(a.name).localeCompare(String(b.name));
+        }
+
+        const av = getSortValue(a, sortKey);
+        const bv = getSortValue(b, sortKey);
+
+        if (sortKey === 'name') return String(av).localeCompare(String(bv));
+        return num(bv) - num(av);
+      });
+
+      return filtered;
+    }
+
+    function render() {
+      const wrap = document.getElementById('grid-wrap');
+      wrap.innerHTML = '';
+
+      if (currentTopTab === 'regional') {
+        const query = document.getElementById('search')?.value?.toLowerCase() || '';
+        const sortKey = document.getElementById('sort-select')?.value || 'name';
+        const trendFilter = document.getElementById('trend-filter')?.value || 'all';
+
+        const allCellSubgroups = getOverviewSectionRows('cells');
+        const allServiceSubgroups = getOverviewSectionRows('services');
+        let rows = [
+          buildOverviewRegionalRow('cells', allCellSubgroups),
+          buildOverviewRegionalRow('services', allServiceSubgroups)
+        ];
+
+        rows = rows.filter(d => {
+          if (query && !d.name.toLowerCase().includes(query)) return false;
+          if (trendFilter === 'up' && d.trend.classification !== 'Growing') return false;
+          if (trendFilter === 'emerging' && d.trend.classification !== 'Emerging Growth') return false;
+          if (trendFilter === 'down' && d.trend.classification !== 'Declining') return false;
+          if (trendFilter === 'flat' && d.trend.direction !== 'flat') return false;
+          if (trendFilter === 'volatile' && d.trend.classification !== 'Volatile') return false;
+          if (trendFilter === 'attention' && d.needs_attention_count <= 0) return false;
+          if (trendFilter === 'missing' && !d.hasMissingReports) return false;
+          return true;
+        });
+
+        rows.sort((a, b) => {
+          const av = getSortValue(a, sortKey);
+          const bv = getSortValue(b, sortKey);
+          if (sortKey === 'name') return String(av).localeCompare(String(bv));
+          return num(bv) - num(av);
+        });
+
+        buildSummary(rows);
+
+        if (!rows.length) {
+          wrap.innerHTML = `
+            <div class="empty-state">
+              <p>No items match your filters.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const section = document.createElement('div');
+        section.className = 'overview-section';
+        const lbl = document.createElement('div');
+        lbl.className = 'group-label';
+        lbl.textContent = 'Regional Overviews';
+        section.appendChild(lbl);
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        rows.forEach(d => grid.appendChild(buildCard(d)));
+        section.appendChild(grid);
+        wrap.appendChild(section);
+        return;
+      }
+
+      if (currentTopTab === 'overview') {
+        const query = document.getElementById('search')?.value?.toLowerCase() || '';
+        const sortKey = document.getElementById('sort-select')?.value || 'name';
+        const trendFilter = document.getElementById('trend-filter')?.value || 'all';
+
+        const applyOverviewFilters = rows => {
+          let out = rows.filter(d => {
+            if (query && !d.name.toLowerCase().includes(query)) return false;
+            if (trendFilter === 'up' && d.trend.classification !== 'Growing') return false;
+            if (trendFilter === 'emerging' && d.trend.classification !== 'Emerging Growth') return false;
+            if (trendFilter === 'down' && d.trend.classification !== 'Declining') return false;
+            if (trendFilter === 'flat' && d.trend.direction !== 'flat') return false;
+            if (trendFilter === 'volatile' && d.trend.classification !== 'Volatile') return false;
+            if (trendFilter === 'attention' && d.needs_attention_count <= 0) return false;
+            if (trendFilter === 'missing' && !d.hasMissingReports) return false;
+            return true;
+          });
+
+          out.sort((a, b) => {
+            const av = getSortValue(a, sortKey);
+            const bv = getSortValue(b, sortKey);
+            if (sortKey === 'name') return String(av).localeCompare(String(bv));
+            return num(bv) - num(av);
+          });
+
+          return out;
+        };
+
+        const allCellSubgroups = getOverviewSectionRows('cells');
+        const allServiceSubgroups = getOverviewSectionRows('services');
+        const regionalCells = buildOverviewRegionalRow('cells', allCellSubgroups);
+        const regionalServices = buildOverviewRegionalRow('services', allServiceSubgroups);
+
+        const cellsOverview = applyOverviewFilters(allCellSubgroups);
+        const servicesOverview = applyOverviewFilters(allServiceSubgroups);
+        const combined = [...cellsOverview, ...servicesOverview];
+
+        buildSummary(combined);
+
+        if (!combined.length) {
+          wrap.innerHTML = `
+            <div class="empty-state">
+              <p>No items match your filters.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const renderOverviewSection = (title, rows) => {
+          if (!rows.length) return;
+          const section = document.createElement('div');
+          section.className = 'overview-section';
+
+          const lbl = document.createElement('div');
+          lbl.className = 'group-label';
+          lbl.textContent = title;
+          section.appendChild(lbl);
+
+          const grid = document.createElement('div');
+          grid.className = 'grid';
+          rows.forEach(d => grid.appendChild(buildCard(d)));
+          section.appendChild(grid);
+          wrap.appendChild(section);
+        };
+
+        renderOverviewSection('Cells Overview', cellsOverview);
+        renderOverviewSection('Services Overview', servicesOverview);
+        return;
+      }
+
+      const filtered = currentFilteredData();
+      buildSummary(filtered);
+
+      if (!filtered.length) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <p>No items match your filters.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const query = document.getElementById('search')?.value?.trim() || '';
+      const trendFilter = document.getElementById('trend-filter')?.value || 'all';
+      const sortKey = document.getElementById('sort-select')?.value || 'name';
+
+      const shouldGroup =
+        activeGroup === 'all' &&
+        !query &&
+        trendFilter === 'all' &&
+        sortKey === 'name';
+
+      if (!shouldGroup) {
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        filtered.forEach(d => grid.appendChild(buildCard(d)));
+        wrap.appendChild(grid);
+        return;
+      }
+
+      const groups = unique(filtered.map(d => d.group)).sort((a, b) => a.localeCompare(b));
+
+      groups.forEach(grp => {
+        const grpItems = filtered.filter(d => d.group === grp);
+        if (!grpItems.length) return;
+
+        if (!IS_SUBGROUP_VIEW) {
+          const lbl = document.createElement('div');
+          lbl.className = 'group-label';
+          lbl.textContent = grp;
+          wrap.appendChild(lbl);
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        grpItems.forEach(d => grid.appendChild(buildCard(d)));
+        wrap.appendChild(grid);
+      });
+    }
+
+    function initDashboard() {
+      if (!dashboardInitialized) {
+        // Load saved theme
+        const savedTheme = localStorage.getItem('dashboard-theme') || 'dark';
+        document.body.classList.toggle('light-mode', savedTheme === 'light');
+
+        document.getElementById('search').addEventListener('input', render);
+        document.getElementById('sort-select').addEventListener('change', render);
+        document.getElementById('trend-filter').addEventListener('change', render);
+        
+        // Theme toggle button
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+          const isLight = document.body.classList.toggle('light-mode');
+          localStorage.setItem('dashboard-theme', isLight ? 'light' : 'dark');
+        });
+        
+        // Reset filters button
+        document.getElementById('reset-filters').addEventListener('click', () => {
+          document.getElementById('search').value = '';
+          document.getElementById('sort-select').value = 'name';
+          document.getElementById('trend-filter').value = 'all';
+          activeGroup = 'all';
+          initGroupTabs();
+          render();
+        });
+
+        document.getElementById('modal-overlay').addEventListener('click', closeModal);
+        document.getElementById('modal-close').addEventListener('click', closeModalBtn);
+        dashboardInitialized = true;
+      }
+
+      initTopTabs();
+      initGroupTabs();
+      render();
+    }
+
+    function applyPayload(data) {
+      if (!data || data.error) {
+        throw new Error(data?.message || 'No data returned from backend.');
+      }
+
+      const allOverview  = Array.isArray(data.overview)  ? data.overview  : [];
+      const allCells     = Array.isArray(data.cells)     ? data.cells     : [];
+      const allServices  = Array.isArray(data.services)  ? data.services  : [];
+
+      if (IS_SUBGROUP_VIEW) {
+        const sg = SUBGROUP_PARAM.toLowerCase();
+        const matchesSubgroup = r =>
+          safeText(r.group || r.region || r.subgroup || r.cluster || r.name || '')
+            .toLowerCase() === sg;
+
+        rawPayload.overview  = allOverview.filter(matchesSubgroup);
+        rawPayload.cells     = allCells.filter(matchesSubgroup);
+        rawPayload.services  = allServices.filter(matchesSubgroup);
+      } else {
+        rawPayload.overview  = allOverview;
+        rawPayload.cells     = allCells;
+        rawPayload.services  = allServices;
+      }
+
+      rawPayload.lastUpdated = data.lastUpdated || data.last_updated || new Date().toISOString();
+
+      if (!rawPayload.overview.length && !rawPayload.cells.length && !rawPayload.services.length) {
+        document.getElementById('grid-wrap').innerHTML =
+          '<div class="empty-state"><p>No attendance data available.</p><small>Please ensure records have been added to the Google Sheet.</small></div>';
+        return;
+      }
+
+      initDashboard();
+    }
+
+    function loadViaJsonp(url, timeoutMs = 12000) {
+      return new Promise((resolve, reject) => {
+        const cb = '__blwDashCb_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        const script = document.createElement('script');
+        let timeoutId = null;
+        let settled = false;
+        const cleanup = () => {
+          if (timeoutId) clearTimeout(timeoutId);
+          delete window[cb];
+          script.remove();
+        };
+
+        window[cb] = payload => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          resolve(payload);
+        };
+        script.onerror = () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('Could not reach the Apps Script web app.'));
+        };
+
+        timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s.`));
+        }, timeoutMs);
+
+        script.async = true;
+        script.src = `${url}${url.includes('?') ? '&' : '?'}callback=${cb}&_=${Date.now()}`;
+        document.body.appendChild(script);
+      });
+    }
+
+    async function fetchJsonWithTimeout(url, timeoutMs = 12000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+      } catch (err) {
+        if (err?.name === 'AbortError') {
+          throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s.`);
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function loadAnyTransport(url, timeoutMs) {
+      const [jsonpResult, fetchResult] = await Promise.allSettled([
+        loadViaJsonp(url, timeoutMs),
+        fetchJsonWithTimeout(url, timeoutMs)
+      ]);
+
+      const payloads = [jsonpResult, fetchResult]
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value);
+
+      const nonErrorPayload = payloads.find(p => p && !p.error);
+      if (nonErrorPayload) return nonErrorPayload;
+      if (payloads.length) return payloads[0];
+
+      const lastError =
+        fetchResult.status === 'rejected' ? fetchResult.reason :
+        jsonpResult.status === 'rejected' ? jsonpResult.reason :
+        null;
+      throw lastError || new Error('All transport methods failed.');
+    }
+
+    async function loadWithRetries(url, options = {}) {
+      const attempts = options.attempts || 4;
+      const baseTimeoutMs = options.baseTimeoutMs || 10000;
+      const timeoutStepMs = options.timeoutStepMs || 5000;
+      const backoffMs = options.backoffMs || 700;
+
+      let lastErr = null;
+
+      for (let i = 0; i < attempts; i++) {
+        const timeoutMs = baseTimeoutMs + i * timeoutStepMs;
+        try {
+          return await loadAnyTransport(url, timeoutMs);
+        } catch (err) {
+          lastErr = err;
+          if (i < attempts - 1) {
+            const delay = backoffMs * (i + 1);
+            console.warn(`Attempt ${i + 1}/${attempts} failed. Retrying in ${delay}ms...`, err);
+            await wait(delay);
+          }
+        }
+      }
+
+      throw lastErr || new Error('Failed to load dashboard data after retries.');
+    }
+
+    async function loadDashboard() {
+      const BASE_API_URL = 'https://script.google.com/macros/s/AKfycbzizTU0Ubjrg7-Gmnk4bFWPlcFF7qxz01e_HEM5syoAxajZ-k3JtSvPzGfEf58kf_7i/exec';
+
+      const subgroup = SUBGROUP_PARAM;
+
+      const apiUrl = subgroup
+        ? `${BASE_API_URL}?subgroup=${encodeURIComponent(subgroup)}`
+        : BASE_API_URL;
+
+      // Cache per subgroup so data does not mix between links
+      const cacheScope = subgroup ? subgroup.toLowerCase() : 'all';
+      const CACHE_KEY = `blw-dashboard-last-good-payload-v2-copy-${cacheScope}`;
+
+      let hadCachedPayload = false;
+      console.log('Loading dashboard data from:', apiUrl);
+
+      try {
+        const cachedRaw = localStorage.getItem(CACHE_KEY);
+        if (cachedRaw) {
+          const cachedPayload = JSON.parse(cachedRaw);
+          cachedPayload.lastUpdated = cachedPayload.lastUpdated || new Date().toISOString();
+          applyPayload(cachedPayload);
+          hadCachedPayload = true;
+        }
+      } catch (cacheReadErr) {
+        console.warn('Could not read cached payload:', cacheReadErr);
+      }
+
+      try {
+        const payload = await loadWithRetries(apiUrl, {
+          attempts: 4,
+          baseTimeoutMs: 10000,
+          timeoutStepMs: 5000,
+          backoffMs: 900
+        });
+
+        localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+        applyPayload(payload);
+      } catch (loadErr) {
+        console.error('Dashboard load error:', loadErr);
+
+        if (hadCachedPayload) {
+          // Keep cached data visible and retry in background
+          setTimeout(() => {
+            loadDashboard().catch(err => console.warn('Scheduled retry failed:', err));
+          }, 45000);
+          return;
+        }
+
+        const message = loadErr?.message || 'Unknown error';
+        document.getElementById('grid-wrap').innerHTML =
+          '<div class="empty-state error"><p>Failed to load dashboard data.</p><small>Please check your web app deployment and sharing permissions. Error: ' +
+          message +
+          '</small></div>';
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>
