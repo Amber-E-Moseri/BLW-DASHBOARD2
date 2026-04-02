@@ -197,6 +197,22 @@
       opacity: 0.9;
     }
 
+    .subgroup-banner {
+      margin: 12px 40px 0;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(108,99,255,0.12), rgba(108,99,255,0.04));
+      color: var(--text);
+      font-size: 12px;
+      letter-spacing: 0.2px;
+    }
+
+    .subgroup-banner strong {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
     .definitions-card {
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid rgba(255, 255, 255, 0.06);
@@ -497,7 +513,7 @@
       font-size: 10px;
       font-weight: 600;
       background: rgba(107, 114, 128, 0.1);
-      color: var(--muted2);
+      color: var(--muted);
     }
 
     .no-report-badge {
@@ -516,6 +532,29 @@
       color: var(--red);
       font-weight: 500;
       margin-top: 2px;
+    }
+
+    .wow-inline {
+      margin-top: 3px;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .wow-inline .pos { color: var(--green); font-weight: 600; }
+    .wow-inline .neg { color: var(--red); font-weight: 600; }
+    .wow-inline .flat { color: var(--muted); font-weight: 600; }
+
+    .needs-attn-chip {
+      margin-top: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(252,92,101,0.35);
+      background: rgba(252,92,101,0.12);
+      color: var(--red);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
     }
 
     .empty-state {
@@ -720,21 +759,23 @@
     </div>
   </header>
 
+  <div id="subgroup-banner" class="subgroup-banner" style="display:none;"></div>
   <div id="summary-bar" class="summary-bar"></div>
 
   <section class="definitions" aria-label="Dashboard definitions">
     <details class="definitions-card">
       <summary class="definitions-title">Definitions & Label Guide</summary>
       <div class="definitions-grid">
-        <div class="def-item"><strong>Growing:</strong> sustained upward movement across recent valid weeks.</div>
-        <div class="def-item"><strong>Emerging Growth:</strong> upward direction, but not yet stable.</div>
-        <div class="def-item"><strong>Recovered:</strong> return near baseline after a sharp dip; not counted as growth.</div>
-        <div class="def-item"><strong>Flat:</strong> no meaningful up/down change.</div>
-        <div class="def-item"><strong>Declining:</strong> sustained downward movement.</div>
-        <div class="def-item"><strong>Volatile:</strong> large swings without clear direction.</div>
-        <div class="def-item"><strong>Reporting %:</strong> share of expected reports actually submitted.</div>
-        <div class="def-item"><strong>Missing Reports:</strong> expected reports with no submitted attendance value.</div>
-        <div class="def-item"><strong>Needs Attention:</strong> low reporting, missing reports, or zero-attendance risk.</div>
+        <div class="def-item"><strong>Growing:</strong> sustained upward movement across recent valid periods.</div>
+        <div class="def-item"><strong>Emerging Growth:</strong> upward direction present, but confidence is still low.</div>
+        <div class="def-item"><strong>Recovered:</strong> return near baseline after a dip; not counted as stable growth.</div>
+        <div class="def-item"><strong>Flat:</strong> no meaningful directional change.</div>
+        <div class="def-item"><strong>Declining:</strong> sustained downward movement using smoothed trend logic (one-off spikes are dampened).</div>
+        <div class="def-item"><strong>Volatile:</strong> frequent swings without stable direction.</div>
+        <div class="def-item"><strong>Reporting %:</strong> submitted reports as a share of expected reports.</div>
+        <div class="def-item"><strong>Missing Reports:</strong> expected periods with no submitted attendance value.</div>
+        <div class="def-item"><strong>Zero Attendance:</strong> reported value is exactly 0 (different from missing).</div>
+        <div class="def-item"><strong>Needs Attention:</strong> triggered by low reporting, missing reports, zero attendance, sharp drops, or persistent low patterns.</div>
       </div>
     </details>
   </section>
@@ -788,6 +829,7 @@
     let activeGroup = 'all';
     let modalChart = null;
     let dashboardInitialized = false;
+    let overviewSectionMode = 'cells';
 
     function normalizeSubgroupParam(raw) {
       const val = safeText(raw).trim();
@@ -802,6 +844,14 @@
     const URL_PARAMS = new URLSearchParams(window.location.search);
     const SUBGROUP_PARAM = normalizeSubgroupParam(URL_PARAMS.get('subgroup'));
     const IS_SUBGROUP_VIEW = Boolean(SUBGROUP_PARAM);
+    const TAB_PARAM = normalizeTabParam(URL_PARAMS.get('tab'));
+
+    function normalizeTabParam(raw) {
+      const val = safeText(raw).trim().toLowerCase();
+      if (!val) return '';
+      if (val === 'overview' || val === 'cells' || val === 'services' || val === 'regional') return val;
+      return '';
+    }
 
     function num(v) {
       const n = Number(v);
@@ -827,6 +877,13 @@
 
     function clamp(n, min, max) {
       return Math.max(min, Math.min(max, n));
+    }
+
+    function median(arr) {
+      const vals = (arr || []).map(num).filter(Number.isFinite).sort((a, b) => a - b);
+      if (!vals.length) return 0;
+      const mid = Math.floor(vals.length / 2);
+      return vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
     }
 
     function avg(arr) {
@@ -911,6 +968,46 @@
         .filter(v => v !== null && v !== undefined && v !== '')
         .map(num)
         .filter(v => Number.isFinite(v));
+    }
+
+    function calcRecentChangeMeta(series) {
+      const clean = validSeriesValues(series);
+      if (clean.length < 2) return { hasData: false, pct: 0 };
+      const prev = clean[clean.length - 2];
+      const curr = clean[clean.length - 1];
+      const pct = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+      return { hasData: true, pct };
+    }
+
+    function updateUrlTabParam() {
+      const nextUrl = new URL(window.location.href);
+      if (currentTopTab && currentTopTab !== 'overview') {
+        nextUrl.searchParams.set('tab', currentTopTab);
+      } else {
+        nextUrl.searchParams.delete('tab');
+      }
+      window.history.replaceState({}, '', nextUrl.toString());
+    }
+
+    function applyInitialTabState() {
+      if (!TAB_PARAM) return;
+      if (IS_SUBGROUP_VIEW && TAB_PARAM === 'regional') {
+        currentTopTab = 'overview';
+        return;
+      }
+      currentTopTab = TAB_PARAM;
+    }
+
+    function renderSubgroupBanner() {
+      const el = document.getElementById('subgroup-banner');
+      if (!el) return;
+      if (!IS_SUBGROUP_VIEW) {
+        el.style.display = 'none';
+        el.textContent = '';
+        return;
+      }
+      el.style.display = 'block';
+      el.innerHTML = `<strong>Subgroup View:</strong> ${safeText(SUBGROUP_PARAM)}`;
     }
 
     function isMissingAttendanceValue(v) {
@@ -1230,9 +1327,16 @@
 
       const confidence = validCount === 3 ? 'low' : 'high';
 
+      // Damp one-off spikes so a single peak does not dominate trend direction.
+      const baselineForCap = clean.slice(-8);
+      const med = median(baselineForCap);
+      const highCap = med > 0 ? med * 1.8 : Infinity;
+      const lowCap = med > 0 ? med * 0.2 : 0;
+      const trendSeries = clean.map(v => clamp(v, lowCap, highCap));
+
       const windowSize = validCount >= 6 ? 3 : 2;
-      const prevWindow = clean.slice(-(windowSize * 2), -windowSize);
-      const latestWindow = clean.slice(-windowSize);
+      const prevWindow = trendSeries.slice(-(windowSize * 2), -windowSize);
+      const latestWindow = trendSeries.slice(-windowSize);
 
       if (!prevWindow.length || !latestWindow.length) {
         return { direction: 'flat', pct: 0, classification: mapTrendLabel('flat', confidence), confidence };
@@ -1243,10 +1347,10 @@
       const pctChange = prevAvg === 0 ? (lastAvg > 0 ? 100 : 0) : ((lastAvg - prevAvg) / prevAvg) * 100;
       const trendThreshold = 4;
 
-      const latestThree = clean.slice(-3);
+      const latestThree = trendSeries.slice(-3);
       const supportiveWeeks = latestThree.filter(v => v > prevAvg).length;
 
-      const recentForDiffs = clean.slice(-6);
+      const recentForDiffs = trendSeries.slice(-6);
       const diffs = [];
       for (let i = 1; i < recentForDiffs.length; i++) {
         diffs.push(recentForDiffs[i] - recentForDiffs[i - 1]);
@@ -1264,13 +1368,13 @@
         }
       }
 
-      const recent = clean.slice(-6);
+      const recent = trendSeries.slice(-6);
       const windowMax = Math.max(...recent, 0);
       const windowMin = Math.min(...recent, 0);
       const swingRatio = (windowMax - windowMin) / Math.max(prevAvg, lastAvg, 1);
 
       // Recent direction override: latest 2-3 valid weeks drive final direction.
-      const recentDirectionWindow = clean.length >= 3 ? clean.slice(-3) : clean.slice(-2);
+      const recentDirectionWindow = trendSeries.length >= 3 ? trendSeries.slice(-3) : trendSeries.slice(-2);
       const recentDirectionDiffs = [];
       for (let i = 1; i < recentDirectionWindow.length; i++) {
         recentDirectionDiffs.push(recentDirectionWindow[i] - recentDirectionWindow[i - 1]);
@@ -1284,7 +1388,7 @@
       const recentDirectionIsDown = recentDownMoves > recentUpMoves;
 
       // Recovery guard: a deep dip in previous window followed by return near baseline is "Recovered", not "Growing".
-      const baselinePool = clean.length >= 9 ? clean.slice(-9, -3) : clean.slice(0, -3);
+      const baselinePool = trendSeries.length >= 9 ? trendSeries.slice(-9, -3) : trendSeries.slice(0, -3);
       const baselineAvg = baselinePool.length ? avg(baselinePool) : prevAvg;
       const prevMin = Math.min(...prevWindow);
       const hadAbnormalDip = baselineAvg > 0 && prevMin <= baselineAvg * 0.75;
@@ -1295,8 +1399,8 @@
       const isRecovery = hadAbnormalDip && returnedNearBaseline;
       const isPartialRecovery = hadAbnormalDip && !returnedNearBaseline && lastAvg >= baselineAvg * 0.70;
 
-      const first4 = clean.length >= 4 ? clean.slice(0, 4) : clean;
-      const last4 = clean.length >= 4 ? clean.slice(-4) : clean;
+      const first4 = trendSeries.length >= 4 ? trendSeries.slice(0, 4) : trendSeries;
+      const last4 = trendSeries.length >= 4 ? trendSeries.slice(-4) : trendSeries;
       const structuralDecline =
         clean.length >= 6 &&
         avg(first4) > 0 &&
@@ -1305,8 +1409,8 @@
       let direction = 'flat';
       let classification = mapTrendLabel('flat', confidence);
       const tags = [];
-      const latest = clean[clean.length - 1];
-      const prevLatest = clean.length >= 2 ? clean[clean.length - 2] : 0;
+      const latest = trendSeries[trendSeries.length - 1];
+      const prevLatest = trendSeries.length >= 2 ? trendSeries[trendSeries.length - 2] : 0;
       const sharpDrop = prevLatest > 0 && latest <= prevLatest * 0.5;
 
       if (structuralDecline) {
@@ -1543,6 +1647,13 @@
       return downCount >= 2;
     }
 
+    function hasAttentionFlag(item) {
+      if (!item) return false;
+      if (Array.isArray(item.needsAttentionReasons) && item.needsAttentionReasons.length > 0) return true;
+      if (num(item.needs_attention_count) > 0) return true;
+      return false;
+    }
+
     // Determine if a value is a valid report (0 or positive) vs missing data
     function isValidReport(val, rawValue) {
       // If raw value is explicitly marked as unreported/missing
@@ -1565,6 +1676,10 @@
       // Missing reports
       if (num(item.missingRatio) > 0) {
         reasons.push('Missing Reports');
+      }
+
+      if (item.hasZeroAttendance) {
+        reasons.push('Zero attendance');
       }
 
       if (isServiceItem && item.trend?.classification === 'Declining') {
@@ -1643,6 +1758,8 @@
       let reportedCount = 0;
       let recentExpectedCount = 0;
       let recentReportedCount = 0;
+      let zeroAttendanceCount = 0;
+      let zeroAttendanceStreak = 0;
 
       if (monthlyObj && typeof monthlyObj === 'object' && !Array.isArray(monthlyObj)) {
         isMonthlyData = true;
@@ -1700,6 +1817,13 @@
       const missingRatio = expectedCount > 0 ? (expectedCount - reportedCount) / expectedCount : (hasMissingReports ? 1 : 0);
       const recentReportingPct = recentExpectedCount > 0 ? (recentReportedCount / recentExpectedCount) * 100 : 100;
       const computedReportingPct = expectedCount > 0 ? (reportedCount / expectedCount) * 100 : reportingPct;
+      const cleanSeries = validSeriesValues(series);
+      zeroAttendanceCount = cleanSeries.filter(v => num(v) === 0).length;
+      for (let i = cleanSeries.length - 1; i >= 0; i--) {
+        if (num(cleanSeries[i]) === 0) zeroAttendanceStreak++;
+        else break;
+      }
+      const hasZeroAttendance = zeroAttendanceCount > 0;
 
       const total =
         series.length
@@ -1751,6 +1875,9 @@
         isMonthlyData,
         hasMissingReports: missingRatio > 0,
         missingRatio: clamp(missingRatio, 0, 1),
+        hasZeroAttendance,
+        zeroAttendanceCount,
+        zeroAttendanceStreak,
         recentReportingPct: clamp(recentReportingPct, 0, 100),
         missingReportWeeks: unique(missingReportWeeks),
         trend: {
@@ -1786,7 +1913,25 @@
         currentTopTab = 'overview';
       }
 
-
+      if (IS_SUBGROUP_VIEW) {
+        const fullBtn = document.createElement('button');
+        fullBtn.className = 'tab-btn';
+        fullBtn.textContent = 'Full Dashboard';
+        fullBtn.addEventListener('click', () => {
+          try {
+            Object.keys(localStorage)
+              .filter(k => k.startsWith('blw-dashboard-last-good-payload-v2-copy-'))
+              .forEach(k => localStorage.removeItem(k));
+          } catch (e) {
+            // Ignore storage cleanup errors and continue.
+          }
+          const fullUrl = new URL(window.location.href);
+          fullUrl.search = '';
+          fullUrl.searchParams.set('subgroup', 'all');
+          window.location.href = fullUrl.toString();
+        });
+        host.appendChild(fullBtn);
+      }
 
       topTabs.forEach(def => {
         const btn = document.createElement('button');
@@ -1795,6 +1940,10 @@
         btn.addEventListener('click', () => {
           currentTopTab = def.key;
           activeGroup = 'all';
+          if (currentTopTab === 'overview') {
+            overviewSectionMode = 'cells';
+          }
+          updateUrlTabParam();
           initTopTabs();
           initGroupTabs();
           render();
@@ -1807,16 +1956,41 @@
       const tabsEl = document.getElementById('tabs');
       tabsEl.innerHTML = '';
 
+      if (IS_SUBGROUP_VIEW && currentTopTab !== 'overview') {
+        tabsEl.style.display = 'none';
+        return;
+      }
+
+      if (currentTopTab === 'overview') {
+        tabsEl.style.display = 'flex';
+
+        const cellsBtn = document.createElement('button');
+        cellsBtn.className = `tab-btn ${overviewSectionMode === 'cells' ? 'active' : ''}`;
+        cellsBtn.textContent = 'Cells Overview';
+        cellsBtn.addEventListener('click', () => {
+          overviewSectionMode = 'cells';
+          initGroupTabs();
+          render();
+        });
+        tabsEl.appendChild(cellsBtn);
+
+        const servicesBtn = document.createElement('button');
+        servicesBtn.className = `tab-btn ${overviewSectionMode === 'services' ? 'active' : ''}`;
+        servicesBtn.textContent = 'Services Overview';
+        servicesBtn.addEventListener('click', () => {
+          overviewSectionMode = 'services';
+          initGroupTabs();
+          render();
+        });
+        tabsEl.appendChild(servicesBtn);
+        return;
+      }
+
       if (currentTopTab === 'overview' || currentTopTab === 'regional') {
         tabsEl.style.display = 'none';
         return;
       }
       tabsEl.style.display = 'flex';
-
-      if (IS_SUBGROUP_VIEW) {
-        tabsEl.style.display = 'none';
-        return;
-      }
 
       const allTab = document.createElement('button');
       allTab.className = `tab-btn ${activeGroup === 'all' ? 'active' : ''}`;
@@ -1994,6 +2168,7 @@
       const subtitle = (isOverviewCells || isOverviewServices)
         ? `${isRegionalCard ? 'Regional Summary' : safeText(d.group)}`
         : `${d.group}${d.leader ? ' - ' + d.leader : ''}${d.sc_code ? ' - ' + d.sc_code : ''}`;
+      const wowMeta = calcRecentChangeMeta(d.series);
 
       let stat1Val = formatInt(d.membership);
       let stat1Lbl = 'Members';
@@ -2036,9 +2211,19 @@
 
       // Format attention reasons
       let reasonsHTML = '';
-      if (!isRegionalCard && d.needsAttentionReasons && d.needsAttentionReasons.length) {
+      const isOverviewCard = isOverviewCells || isOverviewServices;
+      const repeatedOverviewAttentionLine =
+        isOverviewCard &&
+        Array.isArray(d.needsAttentionReasons) &&
+        d.needsAttentionReasons.length === 1 &&
+        /^Needs Attention:/i.test(safeText(d.needsAttentionReasons[0]));
+      if (!isRegionalCard && d.needsAttentionReasons && d.needsAttentionReasons.length && !repeatedOverviewAttentionLine) {
         reasonsHTML = `<div class="attention-reason">${d.needsAttentionReasons.join(' &bull; ')}</div>`;
       }
+
+      const zeroBadge = d.hasZeroAttendance
+        ? `<span class="zero-attendance-badge">Zero report${d.zeroAttendanceCount > 1 ? 's' : ''}: ${formatInt(d.zeroAttendanceCount)}</span>`
+        : '';
 
       // Format month-on-month change if applicable
       let momHTML = '';
@@ -2048,12 +2233,24 @@
         const pctText = formatSecondaryPct(monthMeta, lowConf);
         momHTML = `<span class="trend-pct ${lowConf ? 'lowconf' : ''}">${pctText}</span>`;
       }
+      const wowClassInline = wowMeta.pct > 0 ? 'pos' : wowMeta.pct < 0 ? 'neg' : 'flat';
+      const wowSignInline = wowMeta.pct > 0 ? '+' : '';
+      const wowInlineHtml = wowMeta.hasData
+        ? `<div class="wow-inline">WoW: <span class="${wowClassInline}">${wowSignInline}${Math.round(wowMeta.pct)}%</span></div>`
+        : '';
+      const showNeedsAttentionChip = (isOverviewCells || isOverviewServices) && num(d.needs_attention_count) > 0 && !isRegionalCard;
+      const needsAttentionChip = showNeedsAttentionChip
+        ? `<button class="needs-attn-chip" type="button" data-jump-attn="1">Needs Attention: ${formatInt(d.needs_attention_count)}</button>`
+        : '';
 
       card.innerHTML = `
         <div class="card-header">
           <div>
             <div class="card-title">${d.name}</div>
             <div class="card-sub">${subtitle}</div>
+            ${zeroBadge}
+            ${wowInlineHtml}
+            ${needsAttentionChip}
             ${reasonsHTML}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
@@ -2082,6 +2279,21 @@
         requestAnimationFrame(() => {
           const cvs = card.querySelector('canvas.spark');
           if (cvs) drawSparkline(cvs, d.series, trend);
+        });
+      }
+
+      const jumpBtn = card.querySelector('[data-jump-attn=\"1\"]');
+      if (jumpBtn) {
+        jumpBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          currentTopTab = isOverviewServices ? 'services' : 'cells';
+          activeGroup = d.group;
+          const trendSelect = document.getElementById('trend-filter');
+          if (trendSelect) trendSelect.value = 'attention';
+          updateUrlTabParam();
+          initTopTabs();
+          initGroupTabs();
+          render();
         });
       }
 
@@ -2287,7 +2499,7 @@
           if (trendFilter === 'down' && d.trend.classification !== 'Declining') return false;
           if (trendFilter === 'flat' && d.trend.direction !== 'flat') return false;
           if (trendFilter === 'volatile' && d.trend.classification !== 'Volatile') return false;
-          if (trendFilter === 'attention' && !isDeclining(d.series)) return false;
+          if (trendFilter === 'attention' && !hasAttentionFlag(d)) return false;
           if (trendFilter === 'missing' && !d.hasMissingReports) return false;
         }
 
@@ -2336,7 +2548,7 @@
           if (trendFilter === 'down' && d.trend.classification !== 'Declining') return false;
           if (trendFilter === 'flat' && d.trend.direction !== 'flat') return false;
           if (trendFilter === 'volatile' && d.trend.classification !== 'Volatile') return false;
-          if (trendFilter === 'attention' && d.needs_attention_count <= 0) return false;
+          if (trendFilter === 'attention' && !hasAttentionFlag(d)) return false;
           if (trendFilter === 'missing' && !d.hasMissingReports) return false;
           return true;
         });
@@ -2386,12 +2598,14 @@
             if (trendFilter === 'down' && d.trend.classification !== 'Declining') return false;
             if (trendFilter === 'flat' && d.trend.direction !== 'flat') return false;
             if (trendFilter === 'volatile' && d.trend.classification !== 'Volatile') return false;
-            if (trendFilter === 'attention' && d.needs_attention_count <= 0) return false;
+            if (trendFilter === 'attention' && !hasAttentionFlag(d)) return false;
             if (trendFilter === 'missing' && !d.hasMissingReports) return false;
             return true;
           });
 
           out.sort((a, b) => {
+            const attnDelta = num(b.needs_attention_count) - num(a.needs_attention_count);
+            if (attnDelta !== 0) return attnDelta;
             const av = getSortValue(a, sortKey);
             const bv = getSortValue(b, sortKey);
             if (sortKey === 'name') return String(av).localeCompare(String(bv));
@@ -2403,12 +2617,9 @@
 
         const allCellSubgroups = getOverviewSectionRows('cells');
         const allServiceSubgroups = getOverviewSectionRows('services');
-        const regionalCells = buildOverviewRegionalRow('cells', allCellSubgroups);
-        const regionalServices = buildOverviewRegionalRow('services', allServiceSubgroups);
-
         const cellsOverview = applyOverviewFilters(allCellSubgroups);
         const servicesOverview = applyOverviewFilters(allServiceSubgroups);
-        const combined = [...cellsOverview, ...servicesOverview];
+        const combined = overviewSectionMode === 'services' ? servicesOverview : cellsOverview;
 
         buildSummary(combined);
 
@@ -2438,8 +2649,11 @@
           wrap.appendChild(section);
         };
 
-        renderOverviewSection('Cells Overview', cellsOverview);
-        renderOverviewSection('Services Overview', servicesOverview);
+        if (overviewSectionMode === 'services') {
+          renderOverviewSection('Services Overview', servicesOverview);
+        } else {
+          renderOverviewSection('Cells Overview', cellsOverview);
+        }
         return;
       }
 
@@ -2479,12 +2693,10 @@
         const grpItems = filtered.filter(d => d.group === grp);
         if (!grpItems.length) return;
 
-        if (!IS_SUBGROUP_VIEW) {
-          const lbl = document.createElement('div');
-          lbl.className = 'group-label';
-          lbl.textContent = grp;
-          wrap.appendChild(lbl);
-        }
+        const lbl = document.createElement('div');
+        lbl.className = 'group-label';
+        lbl.textContent = grp;
+        wrap.appendChild(lbl);
 
         const grid = document.createElement('div');
         grid.className = 'grid';
@@ -2495,6 +2707,8 @@
 
     function initDashboard() {
       if (!dashboardInitialized) {
+        applyInitialTabState();
+
         // Load saved theme
         const savedTheme = localStorage.getItem('dashboard-theme') || 'dark';
         document.body.classList.toggle('light-mode', savedTheme === 'light');
@@ -2515,6 +2729,7 @@
           document.getElementById('sort-select').value = 'name';
           document.getElementById('trend-filter').value = 'all';
           activeGroup = 'all';
+          if (currentTopTab === 'overview') overviewSectionMode = 'cells';
           initGroupTabs();
           render();
         });
@@ -2524,6 +2739,8 @@
         dashboardInitialized = true;
       }
 
+      renderSubgroupBanner();
+      updateUrlTabParam();
       initTopTabs();
       initGroupTabs();
       render();
@@ -2534,25 +2751,9 @@
         throw new Error(data?.message || 'No data returned from backend.');
       }
 
-      const allOverview  = Array.isArray(data.overview)  ? data.overview  : [];
-      const allCells     = Array.isArray(data.cells)     ? data.cells     : [];
-      const allServices  = Array.isArray(data.services)  ? data.services  : [];
-
-      if (IS_SUBGROUP_VIEW) {
-        const sg = SUBGROUP_PARAM.toLowerCase();
-        const matchesSubgroup = r =>
-          safeText(r.group || r.region || r.subgroup || r.cluster || r.name || '')
-            .toLowerCase() === sg;
-
-        rawPayload.overview  = allOverview.filter(matchesSubgroup);
-        rawPayload.cells     = allCells.filter(matchesSubgroup);
-        rawPayload.services  = allServices.filter(matchesSubgroup);
-      } else {
-        rawPayload.overview  = allOverview;
-        rawPayload.cells     = allCells;
-        rawPayload.services  = allServices;
-      }
-
+      rawPayload.overview = Array.isArray(data.overview) ? data.overview : [];
+      rawPayload.cells = Array.isArray(data.cells) ? data.cells : [];
+      rawPayload.services = Array.isArray(data.services) ? data.services : [];
       rawPayload.lastUpdated = data.lastUpdated || data.last_updated || new Date().toISOString();
 
       if (!rawPayload.overview.length && !rawPayload.cells.length && !rawPayload.services.length) {
@@ -2732,4 +2933,3 @@
   </script>
 </body>
 </html>
-
