@@ -1,5 +1,7 @@
 # BLW Canada — Cell Dashboard
 
+**🔗 Live Demo: [blwcandash.vercel.app](https://blwcandash.vercel.app/)**
+
 A single-file HTML dashboard for tracking cell and service attendance across subgroups. Data is pulled live from a Google Apps Script backend and rendered client-side with no framework dependencies.
 
 ---
@@ -72,13 +74,13 @@ The dashboard supports restricted subgroup-specific URLs that hide the full view
 ### Usage
 
 ```
-index.html?subgroup=SubgroupName
+https://blwcandash.vercel.app/?subgroup=SubgroupName
 ```
 
 Replace spaces with `%20`:
 
 ```
-index.html?subgroup=Zone%20A
+https://blwcandash.vercel.app/?subgroup=Zone%20A
 ```
 
 ### What changes in subgroup view
@@ -159,7 +161,7 @@ Host the full dashboard behind HTTP Basic Auth or a login wall. Subgroup files a
 This is a **single-file application**. Everything — HTML, CSS, JavaScript, and chart logic — lives in one `.html` file for easy hosting and sharing.
 
 ```
-index.html   ← entire application
+dashboard.html   ← entire application
 README.md        ← this file
 ```
 
@@ -167,8 +169,11 @@ README.md        ← this file
 
 ## Hosting
 
-The file can be hosted anywhere that serves static HTML:
-- Netlify (drag-and-drop deploy)
+Currently deployed on **Vercel** at [blwcandash.vercel.app](https://blwcandash.vercel.app/).
+
+The file can also be hosted anywhere that serves static HTML:
+
+- Vercel (current)
 
 
 No build step, no npm, no dependencies to install.
