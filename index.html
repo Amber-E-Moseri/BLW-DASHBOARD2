@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -696,10 +696,10 @@
 
       <select id="trend-filter">
         <option value="all">Trend: All</option>
-        <option value="up">Trending Up</option>
+        <option value="up">Growing</option>
         <option value="emerging">Emerging Growth</option>
-        <option value="down">Trending Down</option>
-        <option value="flat">Flat</option>
+        <option value="down">Declining</option>
+        <option value="flat">Stable</option>
         <option value="volatile">Volatile</option>
         <option value="attention">Needs Attention</option>
         <option value="missing">Missing Reports Only</option>
@@ -726,12 +726,13 @@
     <details class="definitions-card">
       <summary class="definitions-title">Definitions & Label Guide</summary>
       <div class="definitions-grid">
-        <div class="def-item"><strong>Growing:</strong> sustained upward movement across recent valid weeks.</div>
-        <div class="def-item"><strong>Emerging Growth:</strong> upward direction, but not yet stable.</div>
-        <div class="def-item"><strong>Recovered:</strong> return near baseline after a sharp dip; not counted as growth.</div>
-        <div class="def-item"><strong>Flat:</strong> no meaningful up/down change.</div>
-        <div class="def-item"><strong>Declining:</strong> sustained downward movement.</div>
-        <div class="def-item"><strong>Volatile:</strong> large swings without clear direction.</div>
+        <div class="def-item"><strong>Growing:</strong> recent average is meaningfully higher than the prior window (&gt;4%), with consistent upward moves.</div>
+        <div class="def-item"><strong>Emerging Growth:</strong> same as Growing but based on only 3 valid data points (low confidence).</div>
+        <div class="def-item"><strong>Declining:</strong> 3 consecutive declines, or 2 strong recent drops (&gt;10% each).</div>
+        <div class="def-item"><strong>Volatile:</strong> recent swing ratio is at least 35% of its own average, with at least one up/down alternation.</div>
+        <div class="def-item"><strong>Stable:</strong> movement exists but no clear directional pattern.</div>
+        <div class="def-item"><strong>Insufficient data:</strong> fewer than 3 valid data points.</div>
+        <div class="def-item"><strong>New:</strong> exactly 2 valid data points.</div>
         <div class="def-item"><strong>Reporting %:</strong> share of expected reports actually submitted.</div>
         <div class="def-item"><strong>Missing Reports:</strong> expected reports with no submitted attendance value.</div>
         <div class="def-item"><strong>Needs Attention:</strong> low reporting, missing reports, or zero-attendance risk.</div>
@@ -802,6 +803,9 @@
     const URL_PARAMS = new URLSearchParams(window.location.search);
     const SUBGROUP_PARAM = normalizeSubgroupParam(URL_PARAMS.get('subgroup'));
     const IS_SUBGROUP_VIEW = Boolean(SUBGROUP_PARAM);
+    const FULL_VIEW_TOKEN = 'blw2024admin';
+    const TOKEN_PARAM = safeText(URL_PARAMS.get('token')).trim();
+    const FULL_VIEW_ALLOWED = TOKEN_PARAM === FULL_VIEW_TOKEN;
 
     function num(v) {
       const n = Number(v);
@@ -920,6 +924,7 @@
     function mapTrendLabel(direction, confidence = 'high') {
       if (direction === 'new') return 'New';
       if (direction === 'up') return confidence === 'low' ? 'Emerging Growth' : 'Growing';
+      if (direction === 'emerging') return 'Emerging Growth';
       if (direction === 'down') return 'Declining';
       if (direction === 'flat') return confidence === 'low' ? 'Insufficient data' : 'Stable';
       if (direction === 'volatile') return 'Volatile';
@@ -1206,317 +1211,123 @@
       };
     }
 
-    // CELLS: Growth requires sustained movement, not a bounce-back after a dip.
-    function calcTrendForCells(series) {
-      if (!Array.isArray(series) || series.length < 2) {
-        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient' };
-      }
-
-      const recent3 = series.slice(-3);
-      const hasRecentReport = recent3.some(v => v !== null && v !== undefined && v !== '' && Number.isFinite(num(v)));
-      if (!hasRecentReport) {
-        return { direction: 'flat', pct: 0, classification: 'Insufficient data', confidence: 'insufficient', tags: [] };
-      }
-
-      const totalPoints = series.length;
+    function calcTrendByRules(series) {
       const clean = validSeriesValues(series);
       const validCount = clean.length;
-      const missingCount = Math.max(totalPoints - validCount, 0);
-      const hasMissing = missingCount > 0;
 
-      if (validCount < 3) {
-        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient' };
+      if (validCount < 2) {
+        return {
+          direction: 'flat',
+          pct: 0,
+          classification: 'Insufficient data',
+          confidence: 'insufficient',
+          tags: []
+        };
+      }
+
+      if (validCount === 2) {
+        return {
+          direction: 'new',
+          pct: 0,
+          classification: 'New',
+          confidence: 'insufficient',
+          tags: []
+        };
       }
 
       const confidence = validCount === 3 ? 'low' : 'high';
+      const recentWindow = clean.slice(-Math.min(validCount, 6));
+      const directionDiffs = [];
+      for (let i = 1; i < recentWindow.length; i++) {
+        directionDiffs.push(recentWindow[i] - recentWindow[i - 1]);
+      }
+
+      const recentDropsPct = [];
+      for (let i = 1; i < recentWindow.length; i++) {
+        const prev = recentWindow[i - 1];
+        const curr = recentWindow[i];
+        recentDropsPct.push(prev > 0 ? ((prev - curr) / prev) * 100 : 0);
+      }
 
       const windowSize = validCount >= 6 ? 3 : 2;
-      const prevWindow = clean.slice(-(windowSize * 2), -windowSize);
+      const priorWindow = clean.slice(-(windowSize * 2), -windowSize);
       const latestWindow = clean.slice(-windowSize);
+      const priorAvg = priorWindow.length ? avg(priorWindow) : avg(clean.slice(0, Math.max(clean.length - 1, 1)));
+      const recentAvg = latestWindow.length ? avg(latestWindow) : avg(clean.slice(-2));
+      const pctChange = priorAvg === 0 ? (recentAvg > 0 ? 100 : 0) : ((recentAvg - priorAvg) / priorAvg) * 100;
 
-      if (!prevWindow.length || !latestWindow.length) {
-        return { direction: 'flat', pct: 0, classification: mapTrendLabel('flat', confidence), confidence };
-      }
-
-      const prevAvg = avg(prevWindow);
-      const lastAvg = avg(latestWindow);
-      const pctChange = prevAvg === 0 ? (lastAvg > 0 ? 100 : 0) : ((lastAvg - prevAvg) / prevAvg) * 100;
-      const trendThreshold = 4;
-
-      const latestThree = clean.slice(-3);
-      const supportiveWeeks = latestThree.filter(v => v > prevAvg).length;
-
-      const recentForDiffs = clean.slice(-6);
-      const diffs = [];
-      for (let i = 1; i < recentForDiffs.length; i++) {
-        diffs.push(recentForDiffs[i] - recentForDiffs[i - 1]);
-      }
-      const nonZeroDiffs = diffs.filter(d => d !== 0);
-      const upMoves = nonZeroDiffs.filter(d => d > 0).length;
-      const downMoves = nonZeroDiffs.filter(d => d < 0).length;
-      const moveCount = Math.max(nonZeroDiffs.length, 1);
-      const directionBias = Math.abs(upMoves - downMoves) / moveCount;
-
-      let alternation = 0;
-      for (let i = 1; i < nonZeroDiffs.length; i++) {
-        if ((nonZeroDiffs[i] > 0 && nonZeroDiffs[i - 1] < 0) || (nonZeroDiffs[i] < 0 && nonZeroDiffs[i - 1] > 0)) {
-          alternation++;
-        }
-      }
-
-      const recent = clean.slice(-6);
-      const windowMax = Math.max(...recent, 0);
-      const windowMin = Math.min(...recent, 0);
-      const swingRatio = (windowMax - windowMin) / Math.max(prevAvg, lastAvg, 1);
-
-      // Recent direction override: latest 2-3 valid weeks drive final direction.
-      const recentDirectionWindow = clean.length >= 3 ? clean.slice(-3) : clean.slice(-2);
-      const recentDirectionDiffs = [];
-      for (let i = 1; i < recentDirectionWindow.length; i++) {
-        recentDirectionDiffs.push(recentDirectionWindow[i] - recentDirectionWindow[i - 1]);
-      }
-      const recentDownMoves = recentDirectionDiffs.filter(d => d < 0).length;
-      const recentUpMoves = recentDirectionDiffs.filter(d => d > 0).length;
-      const consistentRecentDecline =
-        recentDirectionDiffs.length > 0 &&
-        recentDirectionDiffs.every(d => d <= 0) &&
-        recentDownMoves > 0;
-      const recentDirectionIsDown = recentDownMoves > recentUpMoves;
-
-      // Recovery guard: a deep dip in previous window followed by return near baseline is "Recovered", not "Growing".
-      const baselinePool = clean.length >= 9 ? clean.slice(-9, -3) : clean.slice(0, -3);
-      const baselineAvg = baselinePool.length ? avg(baselinePool) : prevAvg;
-      const prevMin = Math.min(...prevWindow);
-      const hadAbnormalDip = baselineAvg > 0 && prevMin <= baselineAvg * 0.75;
-      const returnedNearBaseline =
-        baselineAvg > 0 &&
-        lastAvg >= baselineAvg * 0.92 &&
-        lastAvg <= baselineAvg * 1.12;
-      const isRecovery = hadAbnormalDip && returnedNearBaseline;
-      const isPartialRecovery = hadAbnormalDip && !returnedNearBaseline && lastAvg >= baselineAvg * 0.70;
-
-      const first4 = clean.length >= 4 ? clean.slice(0, 4) : clean;
-      const last4 = clean.length >= 4 ? clean.slice(-4) : clean;
-      const structuralDecline =
-        clean.length >= 6 &&
-        avg(first4) > 0 &&
-        avg(last4) < avg(first4) * 0.7;
-
-      let direction = 'flat';
-      let classification = mapTrendLabel('flat', confidence);
-      const tags = [];
-      const latest = clean[clean.length - 1];
-      const prevLatest = clean.length >= 2 ? clean[clean.length - 2] : 0;
-      const sharpDrop = prevLatest > 0 && latest <= prevLatest * 0.5;
-
-      if (structuralDecline) {
-        direction = 'down';
-        classification = 'Declining';
-      } else if (consistentRecentDecline) {
-        direction = 'down';
-        classification = 'Declining';
-      } else if (swingRatio > 0.25 && directionBias < 0.35 && alternation >= 2) {
-        direction = 'volatile';
-        classification = 'Volatile';
-      } else if (pctChange <= -trendThreshold && downMoves >= Math.max(1, Math.floor(moveCount / 2))) {
-        direction = 'down';
-        classification = 'Declining';
-      } else if (isRecovery) {
-        direction = 'flat';
-        classification = 'Recovered';
-      } else if (isPartialRecovery) {
-        direction = 'flat';
-        classification = 'Partial Recovery';
-      } else if (
-        pctChange >= trendThreshold &&
-        lastAvg > prevAvg &&
-        supportiveWeeks >= 2 &&
-        upMoves >= downMoves + 1 &&
-        !recentDirectionIsDown &&
-        !isRecovery
-      ) {
-        direction = 'up';
-        classification = mapTrendLabel('up', hasMissing || confidence === 'low' ? 'low' : 'high');
-      } else if (pctChange > 0.5 && lastAvg > prevAvg) {
-        direction = 'up';
-        classification = mapTrendLabel('up', 'low');
-      } else if (Math.abs(pctChange) <= trendThreshold) {
-        direction = 'flat';
-        classification = mapTrendLabel('flat', confidence);
-      }
-
-      // Sharp drop should override soft outcomes, but never a strong existing decline.
-      if (sharpDrop && classification !== 'Declining') {
-        direction = 'down';
-        classification = 'Declining';
-      }
-
-      if (sharpDrop) tags.push('Sharp Drop');
-
-      return {
-        direction,
-        pct: pctChange,
-        classification,
-        confidence,
-        tags
-      };
-    }
-
-    // SERVICES: Simplified trend logic (rolling average only)
-    function calcTrendForServices(series) {
-      if (!Array.isArray(series) || series.length < 2) {
-        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient', tags: [] };
-      }
-
-      const recent3 = series.slice(-3);
-      const hasRecentReport = recent3.some(v => v !== null && v !== undefined && v !== '' && Number.isFinite(num(v)));
-      if (!hasRecentReport) {
-        return { direction: 'flat', pct: 0, classification: 'Insufficient data', confidence: 'insufficient', tags: [] };
-      }
-
-      const clean = validSeriesValues(series);
-      if (clean.length < 2) {
-        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient', tags: [] };
-      }
-
-      const recentDirectionWindow = clean.length >= 4 ? clean.slice(-4) : clean.slice(-3);
-      const recentDirectionDiffs = [];
-      for (let i = 1; i < recentDirectionWindow.length; i++) {
-        recentDirectionDiffs.push(recentDirectionWindow[i] - recentDirectionWindow[i - 1]);
-      }
-      const recentPctDrops = [];
-      for (let i = 1; i < recentDirectionWindow.length; i++) {
-        const prev = recentDirectionWindow[i - 1];
-        const curr = recentDirectionWindow[i];
-        const dropPct = prev > 0 ? ((prev - curr) / prev) * 100 : 0;
-        recentPctDrops.push(dropPct);
-      }
+      const growthMoveWindow = directionDiffs.slice(-Math.min(3, directionDiffs.length));
+      const consistentUpwardMoves =
+        growthMoveWindow.length > 0 &&
+        growthMoveWindow.every(d => d >= 0) &&
+        growthMoveWindow.some(d => d > 0);
 
       const threeConsecutiveDeclines =
-        recentDirectionDiffs.length >= 3 &&
-        recentDirectionDiffs.slice(-3).every(d => d < 0);
-      const twoStrongDeclines =
-        recentDirectionDiffs.length >= 2 &&
-        recentDirectionDiffs.slice(-2).every(d => d < 0) &&
-        recentPctDrops.slice(-2).every(p => p > 10);
+        directionDiffs.length >= 3 &&
+        directionDiffs.slice(-3).every(d => d < 0);
+      const twoStrongDrops =
+        recentDropsPct.length >= 2 &&
+        recentDropsPct.slice(-2).every(p => p > 10);
 
-      const consistentRecentGrowth =
-        recentDirectionDiffs.length > 0 &&
-        recentDirectionDiffs.every(d => d >= 0) &&
-        recentDirectionDiffs.some(d => d > 0);
-
-      const recentFirst = recentDirectionWindow[0];
-      const recentLast = recentDirectionWindow[recentDirectionWindow.length - 1];
-      const pctChange = recentFirst === 0 ? (recentLast > 0 ? 100 : 0) : ((recentLast - recentFirst) / recentFirst) * 100;
-
-      const recentMax = Math.max(...recentDirectionWindow);
-      const recentMin = Math.min(...recentDirectionWindow);
-      const recentRangeRatio = (recentMax - recentMin) / Math.max(avg(recentDirectionWindow), 1);
       let alternation = 0;
-      for (let i = 1; i < recentDirectionDiffs.length; i++) {
-        if ((recentDirectionDiffs[i] > 0 && recentDirectionDiffs[i - 1] < 0) || (recentDirectionDiffs[i] < 0 && recentDirectionDiffs[i - 1] > 0)) {
-          alternation++;
-        }
+      for (let i = 1; i < directionDiffs.length; i++) {
+        const prev = directionDiffs[i - 1];
+        const curr = directionDiffs[i];
+        if ((prev > 0 && curr < 0) || (prev < 0 && curr > 0)) alternation++;
       }
+      const range = Math.max(...recentWindow) - Math.min(...recentWindow);
+      const recentRangeRatio = range / Math.max(avg(recentWindow), 1);
       const isVolatile = recentRangeRatio >= 0.35 && alternation >= 1;
-      const hasStrongGrowthEvidence = clean.length >= 3;
-      const hasStrongDeclineEvidence = clean.length >= 2;
-      const latest = clean[clean.length - 1];
-      const prevLatest = clean.length >= 2 ? clean[clean.length - 2] : 0;
-      const serviceSharpDropFactor = prevLatest < 10 ? 0.5 : 0.75;
-      const sharpDrop = prevLatest > 0 && latest <= prevLatest * serviceSharpDropFactor;
-      const seriesMean = avg(clean);
-      const seriesMax = Math.max(...clean);
-      const seriesMin = Math.min(...clean);
-      const variationRatio = seriesMean > 0 ? (seriesMax - seriesMin) / seriesMean : 0;
-      const newHigh = latest === seriesMax && variationRatio > 0.1;
-      const baselinePool = clean.length >= 6 ? clean.slice(-6, -2) : clean.slice(0, -2);
-      const baselineAvg = baselinePool.length ? avg(baselinePool) : 0;
-      const recentTwo = clean.slice(-2);
-      const recentLift = recentTwo.length === 2 && recentTwo[1] > recentTwo[0];
-      const hadDip = baselineAvg > 0 && Math.min(...baselinePool) <= baselineAvg * 0.8;
-      const isRecovered = hadDip && recentLift && recentTwo[1] >= baselineAvg * 0.9;
-      const isRecovering = hadDip && recentLift && recentTwo[1] >= baselineAvg * 0.75 && recentTwo[1] < baselineAvg * 0.9;
 
-      let direction = 'flat';
-      let classification = mapTrendLabel('flat', clean.length === 3 ? 'low' : 'high');
-      const confidence = clean.length === 3 ? 'low' : 'high';
-      const tags = [];
-
-      if (hasStrongDeclineEvidence && (threeConsecutiveDeclines || twoStrongDeclines)) {
-        direction = 'down';
-        classification = 'Declining';
-      } else if (isVolatile) {
-        direction = 'volatile';
-        classification = 'Volatile';
-      } else if (isRecovered) {
-        direction = 'flat';
-        classification = 'Recovered';
-      } else if (isRecovering) {
-        direction = 'flat';
-        classification = 'Recovering';
-      } else if (hasStrongGrowthEvidence && consistentRecentGrowth && pctChange >= 9) {
-        direction = 'up';
-        classification = mapTrendLabel('up', confidence);
-      } else if (Math.abs(pctChange) < 9) {
-        direction = 'flat';
-        classification = mapTrendLabel('flat', confidence);
+      if (threeConsecutiveDeclines || twoStrongDrops) {
+        return {
+          direction: 'down',
+          pct: pctChange,
+          classification: 'Declining',
+          confidence,
+          tags: []
+        };
       }
 
-      // Sharp drop should override soft outcomes, but never a strong existing decline.
-      if (sharpDrop && classification !== 'Declining') {
-        direction = 'down';
-        classification = 'Declining';
+      if (isVolatile) {
+        return {
+          direction: 'volatile',
+          pct: pctChange,
+          classification: 'Volatile',
+          confidence,
+          tags: []
+        };
       }
 
-      if (sharpDrop) {
-        tags.push('Sharp Drop');
-      }
-      if (newHigh) {
-        tags.push('New High');
+      if (pctChange > 4 && consistentUpwardMoves) {
+        return {
+          direction: confidence === 'low' ? 'emerging' : 'up',
+          pct: pctChange,
+          classification: confidence === 'low' ? 'Emerging Growth' : 'Growing',
+          confidence,
+          tags: []
+        };
       }
 
       return {
-        direction,
+        direction: 'flat',
         pct: pctChange,
-        classification,
+        classification: 'Stable',
         confidence,
-        tags
+        tags: []
       };
     }
 
-    // MONTHLY: Simple month-on-month comparison
+    function calcTrendForCells(series) {
+      return calcTrendByRules(series);
+    }
+
+    function calcTrendForServices(series) {
+      return calcTrendByRules(series);
+    }
+
     function calcTrendForMonthly(series) {
-      if (!Array.isArray(series) || series.length < 2) {
-        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient' };
-      }
-
-      const clean = validSeriesValues(series);
-      if (clean.length < 2) {
-        return { direction: 'new', pct: 0, classification: 'New', confidence: 'insufficient' };
-      }
-      const prev = clean[clean.length - 2];
-      const curr = clean[clean.length - 1];
-      const pctChange = prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
-
-      let direction = 'flat';
-      const confidence = clean.length < 3 ? 'low' : 'high';
-      let classification = mapTrendLabel('flat', confidence);
-      
-      if (clean.length >= 3 && pctChange > 2) {
-        direction = 'up';
-        classification = mapTrendLabel('up', confidence);
-      } else if (clean.length >= 3 && pctChange < -2) {
-        direction = 'down';
-        classification = 'Declining';
-      }
-
-      return {
-        direction,
-        pct: pctChange,
-        classification,
-        confidence
-      };
+      return calcTrendByRules(series);
     }
 
     // Router: Apply trend logic based on data type
@@ -1862,7 +1673,7 @@
       summaryBar.innerHTML = `
         <div class="stat-pill" data-filter="all"><div class="dot" style="background:#6c63ff"></div><strong>${formatInt(totalItems)}</strong> ${label}</div>
         <div class="stat-pill" data-filter="reporting"><div class="dot" style="background:#9ca3af"></div><strong>${formatInt(reportingAvg)}%</strong> Reporting</div>
-        <div class="stat-pill" data-filter="trending-up"><div class="dot" style="background:#26de81"></div><strong>${formatInt(trendingUp)}</strong> Stable Growing</div>
+        <div class="stat-pill" data-filter="trending-up"><div class="dot" style="background:#26de81"></div><strong>${formatInt(trendingUp)}</strong> Growing</div>
         <div class="stat-pill" data-filter="trending-down"><div class="dot" style="background:#fc5c65"></div><strong>${formatInt(trendingDown)}</strong> Declining</div>
       `;
       
@@ -2728,7 +2539,29 @@
       }
     }
 
-    loadDashboard();
+    function blockUnauthorizedFullView() {
+      if (IS_SUBGROUP_VIEW || FULL_VIEW_ALLOWED) return false;
+
+      const summaryBar = document.getElementById('summary-bar');
+      const topTabs = document.getElementById('top-tabs');
+      const tabs = document.getElementById('tabs');
+      const controls = document.querySelector('.controls');
+      if (summaryBar) summaryBar.innerHTML = '';
+      if (topTabs) topTabs.style.display = 'none';
+      if (tabs) tabs.style.display = 'none';
+      if (controls) controls.style.display = 'none';
+
+      document.getElementById('grid-wrap').innerHTML =
+        '<div class="empty-state error"><p>Full dashboard is protected.</p><small>Add <code>?token=' +
+        FULL_VIEW_TOKEN +
+        '</code> to the URL to open full view, or use a subgroup link.</small></div>';
+
+      return true;
+    }
+
+    if (!blockUnauthorizedFullView()) {
+      loadDashboard();
+    }
   </script>
 </body>
 </html>
