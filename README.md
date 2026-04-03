@@ -168,10 +168,7 @@ README.md        ← this file
 ## Hosting
 
 The file can be hosted anywhere that serves static HTML:
-
-- GitHub Pages
 - Netlify (drag-and-drop deploy)
-- Any web server
-- Shared via Google Drive (use the preview link)
+
 
 No build step, no npm, no dependencies to install.
