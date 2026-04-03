@@ -72,13 +72,13 @@ The dashboard supports restricted subgroup-specific URLs that hide the full view
 ### Usage
 
 ```
-dashboard.html?subgroup=SubgroupName
+index.html?subgroup=SubgroupName
 ```
 
 Replace spaces with `%20`:
 
 ```
-dashboard.html?subgroup=Zone%20A
+index.html?subgroup=Zone%20A
 ```
 
 ### What changes in subgroup view
@@ -159,7 +159,7 @@ Host the full dashboard behind HTTP Basic Auth or a login wall. Subgroup files a
 This is a **single-file application**. Everything — HTML, CSS, JavaScript, and chart logic — lives in one `.html` file for easy hosting and sharing.
 
 ```
-dashboard.html   ← entire application
+index.html   ← entire application
 README.md        ← this file
 ```
 
