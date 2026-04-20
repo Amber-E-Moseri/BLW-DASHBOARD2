@@ -1,11 +1,13 @@
-<div align="center">
-
 # BLW Canada — Cell Dashboard
 
-A single-file HTML dashboard for tracking cell and service attendance across subgroups.  
-Data is pulled live from a Google Apps Script backend and rendered client-side with no framework dependencies.
+A live attendance and reporting dashboard for tracking 53 cells and services across six groups.
 
-> 🔗 **Live demo available upon request.**
+> Built with Google Apps Script + vanilla HTML/JS. No framework. No build step. Deploys as a single file.
+
+---
+
+🔗 **Live demo available upon request.**
+## Preview
 
 <br/>
 
@@ -19,194 +21,227 @@ Data is pulled live from a Google Apps Script backend and rendered client-side w
 
 ---
 
-## Tech Stack
+## What This Dashboard Does
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Vanilla HTML / CSS / JavaScript (single file) |
-| Charts | Chart.js 4.4.1 |
-| Fonts | DM Serif Display, DM Sans (Google Fonts) |
-| Data Backend | Google Apps Script (Web App) |
-| Data Transport | JSONP + Fetch (dual transport with auto-fallback) |
-| Caching | `localStorage` (per-subgroup scope) |
+- Tracks weekly attendance across all cells and services by subgroup
+- Flags underperforming cells — low reporting % or multiple missing weeks
+- Displays attendance trends (Growing / Declining / Stable) per cell and service
+- Provides subgroup-level aggregated insights for regional leadership
+- Supports restricted views per subgroup via unique shareable links
+- Renders live from Google Sheets — no manual exports needed
 
 ---
 
-## Features
+## Project Structure
 
-### Views & Navigation
-
-| Tab | Description |
-|-----|-------------|
-| **Regional** | Aggregated overview across all subgroups (full view only) |
-| **SG Overview** | Per-subgroup summary cards for both Cells and Services |
-| **Cells** | Individual cell attendance cards with sparklines |
-| **Services** | Individual service attendance cards |
-
-### Per-Card Metrics
-
-- Attendance sparkline (last N weeks/months)
-- Trend badge with month-on-month % change
-- Reporting rate ring (visual % indicator)
-- Last 3-month average attendance
-- Membership count
-- **Needs Attention** flag with reasons
-
-### Filtering & Sorting
-
-- Live search by name, group, or leader
-- Sort by: Name · Growth % · Attendance · Membership · Reporting Rate
-- Trend filter: All · Growing · Emerging · Declining · Stable · Volatile · Needs Attention · Missing Reports
-- **Reset Filters** button
-- Clickable summary pills
-
-### UI
-
-- Dark mode (default) and light mode toggle — preference saved to `localStorage`
-- Click any card to open a detailed modal with full chart, stats, and attention notes
-- Responsive grid layout
+```
+BLWCANADA-DASHBOARD/
+├── index.html        # Full dashboard UI — single file, self-contained
+├── appscript.gs      # Google Apps Script backend — deployed as a web app
+└── canada_sr.png     # Logo used in the dashboard header
+```
 
 ---
 
-## Trend Classifications
+## Architecture Overview
 
-Trends are computed algorithmically from the attendance series. No manual tagging.
-
-| Label | What triggers it |
-|-------|-----------------|
-| **Growing** | Recent average is >4% above prior window, with consistent upward movement |
-| **Emerging Growth** | Same as Growing but only 3 data points available (low confidence) |
-| **Declining** | 3 consecutive declines, OR 2 strong drops (>10% each) in recent periods |
-| **Volatile** | Swing range ≥35% of the group's own average AND at least 1 directional alternation in recent moves |
-| **Stable** | Movement present but no clear sustained direction |
-| **Insufficient data** | Fewer than 3 valid data points |
-| **New** | Exactly 2 valid data points |
-
-> Low-confidence labels are visually dimmed on the trend badge.
+```
+Google Sheet
+  └─ "Cell Reporting" sheet
+  └─ "Services" sheet
+        │
+        ▼
+  appscript.gs  (Google Apps Script Web App)
+        │  reads both sheets, computes summaries
+        │  returns JSON payload via HTTP GET
+        │  supports JSONP for CORS bypass
+        ▼
+  index.html  (static dashboard, hosted anywhere)
+        │  fetches data on load
+        │  caches to localStorage per subgroup
+        │  renders charts, trends, and filters
+```
 
 ---
 
-## Subgroup URL Parameters
+## Backend — `appscript.gs`
 
-The dashboard supports restricted subgroup-specific URLs that hide the full view.
+Deployed as a Google Apps Script **web app**. Reads the source spreadsheet and returns structured JSON on every `GET` request.
 
-```
-https://your-deployment/?subgroup=SubgroupName
-```
-
-Replace spaces with `%20`:
-
-```
-https://your-deployment/?subgroup=Zone%20A
-```
-
-**What changes in subgroup view:**
-- Only that subgroup's data is fetched from the backend
-- The **Regional** tab is hidden
-- Group tabs are hidden (no browsing across other groups)
-- The subgroup name is passed to the Apps Script API so only relevant records are returned
-
-**Reserved values** (normalised to full view — will not filter):  
-`all` · `all-groups` · `full` · `regional` · `*`
-
----
-
-## Data Loading & Caching
-
-1. On page load, any previously cached payload for the current scope is shown immediately
-2. A fresh fetch is attempted via both JSONP and Fetch simultaneously (first valid response wins)
-3. Up to **4 retry attempts** with escalating timeouts (10s → 25s) and backoff delays
-4. On success, the new payload is saved to `localStorage` under a scoped key:
-   ```
-   blw-dashboard-last-good-payload-v2-copy-{scope}
-   ```
-   where `{scope}` is the subgroup name (lowercased) or `all`
-5. If the network fails but a cache exists, cached data remains visible and a background retry is scheduled after 45 seconds
-
----
-
-## Backend (Google Apps Script)
-
-The dashboard fetches from:
-
-```
-https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec
-```
-
-**Query parameters:**
-
-| Parameter | Description |
-|-----------|-------------|
-| `subgroup` | Filter results to a specific subgroup |
-| `callback` | JSONP callback function name (auto-generated) |
-
-**Expected response shape:**
+**Endpoint response shape:**
 
 ```json
 {
-  "overview": [ ... ],
-  "cells": [ ... ],
-  "services": [ ... ],
-  "lastUpdated": "2024-01-01T00:00:00.000Z"
+  "last_updated": "<ISO timestamp>",
+  "cells":    [ ...cell records ],
+  "services": [ ...service records ],
+  "overview": [ ...subgroup aggregates ]
 }
 ```
 
-Each item in `cells` and `services` should include fields such as `name`, `group`, `leader`, `membership`, `reporting_pct`, and a series of attendance values with corresponding labels.
+**Key behaviours:**
+- Detects group header rows automatically (name present, no leader/membership/attendance)
+- Marks a week as `missing` when its cell is red-highlighted and empty
+- Computes `needs_attention` flag: `reporting_pct < 50` OR `missing_reports >= 2`
+- Writes (and formats) an **Overview tab** back into the spreadsheet after every fetch
+- Supports `?callback=<n>` for JSONP cross-origin loading
 
 ---
 
-## Access Control
+## Frontend — `index.html`
 
-The subgroup URL system provides basic data separation — each subgroup link fetches only its own data. The full dashboard URL is not protected by default.
+A fully self-contained single-file dashboard. Open directly in a browser — no server or build tool required.
 
-**Token-based** *(no server required)*  
-Add a secret token check in the HTML. Without `?token=yourSecret`, the page shows nothing. Subgroup links do not include the token.
+**Dependencies (CDN only):**
+- [Chart.js 4.4.1](https://www.chartjs.org/) — sparklines and attendance charts
+- [DM Sans & DM Serif Display](https://fonts.google.com/) — typography
 
-**Two separate files**  
-Maintain one admin file (full view) and one subgroup-only file (Regional tab removed at source).
+#### Views
 
-**Server-side auth** *(most secure)*  
-Host the full dashboard behind HTTP Basic Auth or a login wall. Subgroup files are served from a separate public path.
+| Tab         | Shows                                                       |
+|-------------|-------------------------------------------------------------|
+| SG Overview | One row per subgroup with rolled-up stats                   |
+| Cells       | Individual cell records, grouped and filterable by subgroup |
+| Services    | Individual service records, grouped by subgroup             |
+
+#### Filters & Controls
+
+- **Search** — by name, leader, or group
+- **Trend filter** — Growing / Declining / Stable
+- **Reset Filters** button
+- **Light / Dark mode** toggle
+
+#### URL Parameters
+
+| Parameter  | Example                  | Effect                                            |
+|------------|--------------------------|---------------------------------------------------|
+| `subgroup` | `?subgroup=Central+SGA`  | Locks dashboard to one subgroup                   |
+| `token`    | `?token=blw2024admin`    | Unlocks the full cross-subgroup admin view        |
+
+Without either, access is blocked — allowing safe sharing of subgroup-specific links.
+
+#### Data Loading Strategy
+
+1. Checks `localStorage` for a cached payload → renders immediately if found
+2. Races a **JSONP request** (CORS bypass) against a standard `fetch()` — first to respond wins
+3. Retries up to **4 times** with escalating timeouts (10s → 25s) and 900ms backoff
+4. Caches the fresh payload to `localStorage` (scoped per subgroup)
+5. On fetch failure with cache available: keeps cached data visible, retries in 45 seconds
 
 ---
 
-## File Structure
+## Setup & Deployment
 
-Single-file application — HTML, CSS, JavaScript, and chart logic all in one `.html` file.
+### 1. Prepare the Google Sheet
+
+Create a Google Sheet with two tabs named **exactly**:
+
+- `Cell Reporting`
+- `Services`
+
+**Cell Reporting layout** _(row 5 = month headers, row 6 = week labels, row 7+ = data)_
+
+| Col | Field          | Notes                                              |
+|-----|----------------|----------------------------------------------------|
+| A   | SC Code        |                                                    |
+| D   | Cell Name      | Group header rows: name only, all other cols empty |
+| E   | Leader         |                                                    |
+| F   | Membership     |                                                    |
+| G   | Avg Attendance |                                                    |
+| H   | Reporting %    |                                                    |
+| I+  | Weekly data    | Red cell fill = missing/unreported week            |
+
+**Services layout** _(same header row structure)_
+
+| Col | Field              |
+|-----|--------------------|
+| A   | SC Code            |
+| B   | Cells Represented  |
+| C   | Service Name       |
+| D   | Leader             |
+| E   | Reporting %        |
+| F   | Avg Attendance     |
+| G+  | Weekly data        |
+
+### 2. Deploy the Apps Script
+
+1. In your Google Sheet: **Extensions → Apps Script**
+2. Paste the contents of `appscript.gs` and save
+3. **Deploy → New deployment** → Type: **Web App**
+4. Execute as: **Me** · Who has access: **Anyone**
+5. Copy the generated deployment URL
+
+### 3. Wire Up the Dashboard
+
+In `index.html` (~line 2486), replace the placeholder URL:
+
+```js
+const BASE_API_URL = 'https://script.google.com/macros/s/<YOUR_DEPLOYMENT_ID>/exec';
+```
+
+Optionally update the admin token (~line 806):
+
+```js
+const FULL_VIEW_TOKEN = 'your-secure-token-here';
+```
+
+### 4. Host & Share
+
+`index.html` is a static file — host it anywhere (GitHub Pages, Netlify, Vercel, etc.).
 
 ```
-dashboard.html   ← entire application
-README.md        ← this file
+# Subgroup leader link (restricted view)
+https://your-domain.com/?subgroup=Central+SGA
+
+# Admin link (full view)
+https://your-domain.com/?token=your-secure-token-here
 ```
 
 ---
 
-## Hosting
+## Subgroups
 
-The file can be hosted anywhere that serves static HTML — no build step, no npm, no dependencies to install.
+Six subgroups are tracked (defined in `appscript.gs`):
+
+`Central East SGA` · `Central East SGB` · `Central SGA` · `Central SGB` · `West SGA` · `West SGB`
 
 ---
 
-## Project Rating
+## Data Model Reference
 
-**Overall: 8.4 / 10** — Strong production-ready tool, thoughtfully built with real operational maturity.
+<details>
+<summary>Cell / Service record fields</summary>
 
-| Dimension | Score |
-|-----------|-------|
-| Technical execution | 9 / 10 |
-| Feature completeness | 8.8 / 10 |
-| UX & design | 8.5 / 10 |
-| Resilience & caching | 9 / 10 |
-| Architecture | 7.5 / 10 |
-| Access control | 6.5 / 10 |
+| Field             | Type    | Description                                              |
+|-------------------|---------|----------------------------------------------------------|
+| `name`            | string  | Cell or service name                                     |
+| `leader`          | string  | Leader name                                              |
+| `membership`      | number  | Registered members (cells only)                          |
+| `avg_attendance`  | number  | Average weekly attendance                                |
+| `engagement_pct`  | number  | `avg_attendance / membership × 100`                      |
+| `reporting_pct`   | number  | % of weeks with a submitted report                       |
+| `missing_reports` | number  | Count of red-highlighted (unreported) weeks              |
+| `needs_attention` | boolean | `true` if `reporting_pct < 50` or `missing_reports >= 2` |
+| `sc_code`         | string  | Subgroup/cluster code                                    |
+| `group`           | string  | Subgroup name                                            |
+| `weekly`          | array   | `[{ week, attendance, missing }]` per reported week      |
 
-**Strengths**
-- Algorithmic trend engine (Growing / Volatile / Declining etc.) is genuinely sophisticated for a no-framework app
-- Dual JSONP + Fetch transport with retry backoff and `localStorage` fallback — real offline resilience
-- Subgroup URL scoping is a clever zero-server access pattern
-- Single-file deploy with zero dependencies is a strong operational choice for a volunteer/church context
+</details>
 
-**Areas to grow**
-- Single-file architecture will get harder to maintain as features grow — worth splitting CSS/JS at some point
-- Access control is advisory — a determined user can still reach the full URL; token or server auth recommended before sharing widely
-- No offline-first fallback for a full Apps Script outage beyond showing cached data
+<details>
+<summary>Overview record fields (per subgroup)</summary>
+
+Includes all of the above rolled up per subgroup, plus:
+
+| Field                       | Description                                     |
+|-----------------------------|-------------------------------------------------|
+| `cell_count`                | Number of cells in the subgroup                 |
+| `cell_avg_engagement_pct`   | Average engagement % across cells               |
+| `cells_needing_attention`   | Count of cells flagged `needs_attention`         |
+| `service_count`             | Number of services in the subgroup              |
+| `service_cells_represented` | Total cells covered by services                 |
+| `missing_reports`           | Combined missing report count (cells + services)|
+| `weekly`                    | Merged weekly averages across cells and services|
+
+</details>
+
