@@ -115,8 +115,8 @@ A fully self-contained single-file dashboard. Open directly in a browser — no 
 
 | Parameter  | Example                  | Effect                                            |
 |------------|--------------------------|---------------------------------------------------|
-| `subgroup` | `?subgroup=Central+SGA`  | Locks dashboard to one subgroup                   |
-| `token`    | `?token=blw2024admin`    | Unlocks the full cross-subgroup admin view        |
+| `subgroup` | `?subgroup=...`          | Locks dashboard to one subgroup                   |
+| `token`    | `?token=...   `          | Unlocks the full cross-subgroup admin view        |
 
 Without either, access is blocked — allowing safe sharing of subgroup-specific links.
 
@@ -191,7 +191,7 @@ const FULL_VIEW_TOKEN = 'your-secure-token-here';
 
 ```
 # Subgroup leader link (restricted view)
-https://your-domain.com/?subgroup=Central+SGA
+https://your-domain.com/?subgroup=your-subgroup
 
 # Admin link (full view)
 https://your-domain.com/?token=your-secure-token-here
@@ -202,8 +202,6 @@ https://your-domain.com/?token=your-secure-token-here
 ## Subgroups
 
 Six subgroups are tracked (defined in `appscript.gs`):
-
-`Central East SGA` · `Central East SGB` · `Central SGA` · `Central SGB` · `West SGA` · `West SGB`
 
 ---
 
