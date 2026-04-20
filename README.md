@@ -1,4 +1,4 @@
-# BLW Canada — Cell Dashboard
+# Intelligence Dashboard
 
 A live attendance and reporting dashboard for tracking 53 cells and services across six groups.
 
